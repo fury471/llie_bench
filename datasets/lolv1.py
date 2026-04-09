@@ -10,8 +10,10 @@ class LOLv1(BaseDataset):
         super().__init__()
         self.root = Path(root)
         self.split = split
-        self.low_dir = self.root / split / "low"
-        self.high_dir = self.root / split / "high"
+        split_map = {"train": "our485", "test": "eval15"}
+        split_folder = split_map[self.split]
+        self.low_dir = self.root / split_folder / "low"
+        self.high_dir = self.root / split_folder / "high"
         self.filenames = sorted([f.name for f in self.low_dir.glob("*.png")])
 
     def __len__(self):

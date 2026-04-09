@@ -1,6 +1,6 @@
 method: zerodce
 dataset: lolv1
-data_root: data/lolv1
+data_root: data/LOLdataset
 batch_size: 8
 lr: 0.0001
 epochs: 100
