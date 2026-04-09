@@ -1,0 +1,3 @@
+method: clahe
+clip_limit: 2.0
+tile_size: 8
