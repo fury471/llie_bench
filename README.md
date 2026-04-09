@@ -58,3 +58,28 @@ data/LOLdataset/
 ```bash
 python tools/benchmark.py --config configs/experiments/full_bench_lolv1.yaml
 ```
+
+## Adding New Plugins
+
+This framework is designed to be extended with minimal effort.
+
+### Adding a New Method
+1. Create `methods/your_method.py` inheriting `BaseMethod`
+2. Implement `forward`, `enhance`, `compute_loss`, `load_ckpt`, `get_meta`
+3. Register: `METHOD_REGISTRY["your_method"] = YourMethod`
+4. Add `configs/methods/your_method.yaml`
+
+### Adding a New Dataset
+1. Create `datasets/your_dataset.py` inheriting `BaseDataset`
+2. Implement `__getitem__`, `__len__`, `get_meta`
+3. Register: `DATASET_REGISTRY["your_dataset"] = YourDataset`
+4. Add `configs/datasets/your_dataset.yaml`
+
+### Adding a New Metric
+1. Create `metrics/your_metric.py` inheriting `BaseMetric`
+2. Implement `compute`, `aggregate`, `reset`
+3. Register: `METRIC_REGISTRY["your_metric"] = YourMetric`
+4. Add `configs/metrics/your_metric.yaml`
+
+### Key Rule
+> The engine never changes. Only plugins change.
