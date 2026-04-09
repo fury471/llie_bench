@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
+import torch.nn as nn
 
-class BaseMethod(ABC):
+class BaseMethod(ABC, nn.Module):
     """Abstract base class for all methods."""
     @abstractmethod
     def forward(self, batch):
