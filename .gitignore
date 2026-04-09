@@ -22,3 +22,9 @@ results/
 # OS
 .DS_Store
 Thumbs.db
+
+# Data
+data/
+
+# Checkpoints
+checkpoints/
