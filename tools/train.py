@@ -30,6 +30,7 @@ def main():
 
     # detect the device automatically (use GPU if available)
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Using device: {device}")
 
     # create the trainer and run training
     trainer = Trainer(
