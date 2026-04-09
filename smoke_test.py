@@ -1,5 +1,8 @@
 import torch
+# methods
 from methods.zerodce import ZeroDCE
+from methods.clahe import CLAHE
+
 from datasets.lolv1 import LOLv1
 from metrics.psnr import PSNRMetric
 from metrics.ssim import SSIMMetric
@@ -8,12 +11,13 @@ from core.registry import METHOD_REGISTRY, DATASET_REGISTRY, METRIC_REGISTRY, lo
 def test_registry():
     print("Testing registry...")
     assert "zerodce" in METHOD_REGISTRY, "ZeroDCE not registered"
+    assert "clahe" in METHOD_REGISTRY, "CLAHE not registered"
     assert "lolv1" in DATASET_REGISTRY, "LOLv1 not registered"
     assert "psnr" in METRIC_REGISTRY, "PSNR not registered"
     assert "ssim" in METRIC_REGISTRY, "SSIM not registered"
     print("Registry OK")
 
-def test_model():
+def test_ZeroDCE():
     print("Testing ZeroDCE model...")
     model = ZeroDCE()
     fake_batch = [torch.randn(1, 3, 64, 64)]
@@ -42,9 +46,18 @@ def test_dataset():
     print(f"Low image shape: {low.shape} OK")
     print(f"High image shape: {high.shape} OK")
 
+def test_clahe():
+    print("Testing CLAHE method...")
+    model = CLAHE()
+    fake_batch = [torch.randn(1, 3, 64, 64).clamp(0, 1)]
+    output = model.forward(fake_batch)
+    assert output.shape == (1, 3, 64, 64), f"Unexpected output shape: {output.shape}"
+    print(f"CLAHE output shape: {output.shape} OK")
+
 if __name__ == "__main__":
     test_registry()
-    test_model()
+    test_ZeroDCE()
+    test_clahe()
     test_metrics()
     test_dataset()
     print("\nAll tests passed!")
