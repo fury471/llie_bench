@@ -1,0 +1,50 @@
+import argparse
+from core.config import load_config
+from core.registry import METHOD_REGISTRY, DATASET_REGISTRY, lookup
+from engine.trainer import Trainer
+import torch
+
+# import plugins so they register themselves
+import methods.zerodce
+import datasets.lolv1
+
+# all the logic here
+def main():
+    # parse the --config argument.
+    parser = argparse.ArgumentParser(description="Train LLIE method")
+    parser.add_argument("--config", type=str, required=True, help="Path to experiment config")
+    args = parser.parse_args()
+
+    # load the config and merge with defaults
+    config = load_config(args.config)
+
+    # lookup the method and dataset classes
+    method = lookup(METHOD_REGISTRY, config["method"])()
+    dataset = lookup(DATASET_REGISTRY, config["dataset"])(config["data_root"], split="train")
+
+    # create a dataloader for training
+    train_loader = torch.utils.data.DataLoader(dataset, batch_size=config["batch_size"], shuffle=True)
+
+    # create an optimizer for the method
+    optimizer = torch.optim.Adam(method.parameters(), lr=config["lr"])
+
+    # detect the device automatically (use GPU if available)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # create the trainer and run training
+    trainer = Trainer(
+        model=method,
+        optimizer=optimizer,
+        device=device,
+        log_dir=config["log_dir"],
+        ckpt_dir=config["ckpt_dir"]
+    )
+    trainer.train(
+        dataloader=train_loader,
+        epochs=config["epochs"],
+        seed=config["seed"]
+    )
+
+
+if __name__ == "__main__": 
+    main()
