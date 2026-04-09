@@ -7,6 +7,7 @@ from datasets.lolv1 import LOLv1
 from metrics.psnr import PSNRMetric
 from metrics.ssim import SSIMMetric
 from core.registry import METHOD_REGISTRY, DATASET_REGISTRY, METRIC_REGISTRY, lookup
+from core.config import load_config
 
 def test_registry():
     print("Testing registry...")
@@ -16,6 +17,23 @@ def test_registry():
     assert "psnr" in METRIC_REGISTRY, "PSNR not registered"
     assert "ssim" in METRIC_REGISTRY, "SSIM not registered"
     print("Registry OK")
+
+def test_config():
+    print("Testing config loading and merging...")
+    config = load_config("configs/experiments/full_bench_lolv1.yaml")
+    
+    assert "method" in config, "method key missing"
+    assert "dataset" in config, "dataset key missing"
+    assert "metrics" in config, "metrics key missing"
+    assert "lr" in config, "lr key missing — method config not merged"
+    assert "data_root" in config, "data_root key missing — dataset config not merged"
+    
+    print(f"method: {config['method']} OK")
+    print(f"dataset: {config['dataset']} OK")
+    print(f"metrics: {config['metrics']} OK")
+    print(f"lr: {config['lr']} OK")
+    print(f"data_root: {config['data_root']} OK")
+    print("Config OK")
 
 def test_ZeroDCE():
     print("Testing ZeroDCE model...")
@@ -56,6 +74,7 @@ def test_clahe():
 
 if __name__ == "__main__":
     test_registry()
+    test_config()
     test_ZeroDCE()
     test_clahe()
     test_metrics()
