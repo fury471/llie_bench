@@ -22,3 +22,8 @@ class BaseMethod(ABC, nn.Module):
     def get_meta(self):
         """Return metadata dict with keys: name, type (srgb/raw), paired (bool)."""
         pass
+
+    @abstractmethod
+    def enhance(self, batch):
+        """Run the method in inference mode to enhance images."""
+        pass

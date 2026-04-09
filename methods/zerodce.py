@@ -52,6 +52,15 @@ class ZeroDCE(BaseMethod):
             "paper_url": "https://arxiv.org/abs/2001.06826",
         }
     
+    def enhance(self, batch):
+        x = batch[0]
+        curve_params = self.forward(batch)
+        enhanced = x.clone()
+        for i in range(8):
+            A = curve_params[:, i*3:(i+1)*3, :, :]
+            enhanced = enhanced + A * enhanced * (1.0 - enhanced)
+        return enhanced
+    
 # Register the method in the global registry
 METHOD_REGISTRY["zerodce"] = ZeroDCE
 

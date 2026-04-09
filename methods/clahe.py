@@ -53,6 +53,9 @@ class CLAHE(BaseMethod):
             "description": "Contrast Limited Adaptive Histogram Equalization (CLAHE)",
             "paper_url": "https://en.wikipedia.org/wiki/Adaptive_histogram_equalization#Contrast_Limited_AHE_(CLAHE)",
         }
+    
+    def enhance(self, batch):
+        return self.forward(batch)
 
 # Register the method in the global registry
 METHOD_REGISTRY["clahe"] = CLAHE
