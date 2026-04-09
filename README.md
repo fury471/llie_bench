@@ -37,6 +37,22 @@ This is called **low coupling**. The engine never knows what method, dataset, or
 pip install -r requirements.txt
 ```
 
+## Data Setup
+
+### LOLv1
+1. Download from: https://daooshee.github.io/BMVC2018website/
+2. Extract and place under `data/LOLdataset/`
+3. Expected structure:
+```
+data/LOLdataset/
+├── our485/
+│   ├── low/
+│   └── high/
+└── eval15/
+    ├── low/
+    └── high/
+```
+
 ## Usage
 
 ```bash
