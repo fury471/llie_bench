@@ -3,6 +3,16 @@ import torch.nn as nn
 from methods.base import BaseMethod
 from core.registry import METHOD_REGISTRY
 
+"""
++------------------------------------------------------------------+
+|                       Enhancement Controls                       |
++------------------------------------------------------------------+
+| Exposure                : controls overall brightness target     |
+| Spatial Consistency     : keeps structure similar to input       |
+| Color Constancy         : keeps colors natural                   |
+| Illumination Smoothness : makes enhancement smooth spatially     |
++------------------------------------------------------------------+
+"""
 class ZeroDCE(BaseMethod):
     def __init__(self):
         super().__init__()
@@ -30,14 +40,61 @@ class ZeroDCE(BaseMethod):
         x = self.tanh(self.conv7(x))
         return x
     
+    def exposure_loss(self, enhanced, patch_size=16, target=0.6):
+        """Penalize patches that deviate from target brightness."""
+        pool = torch.nn.functional.avg_pool2d(enhanced, patch_size)
+        loss = torch.mean((pool - target) ** 2)
+        return loss
+    
+    def spatial_consistency_loss(self, enhanced, original):
+        """Keep spatial structure similar to the original image."""
+        # enhanced and original are both (B, 3, H, W)
+        # compute differences with neighbors in 4 directions
+        left = enhanced[:, :, :, :-1] - enhanced[:, :, :, 1:]
+        right = original[:, :, :, :-1] - original[:, :, :, 1:]
+        top = enhanced[:, :, :-1, :] - enhanced[:, :, 1:, :]
+        bottom = original[:, :, :-1, :] - original[:, :, 1:, :]
+
+        loss = torch.mean((left - right) ** 2) + torch.mean((top - bottom) ** 2)
+        return loss
+    
+    def color_constancy_loss(self, enhanced):
+        """Keep color channels balanced."""
+        # enhanced and original are both (B, 3, H, W)
+        mean_r = torch.mean(enhanced[:, 0, :, :])
+        mean_g = torch.mean(enhanced[:, 1, :, :])
+        mean_b = torch.mean(enhanced[:, 2, :, :])
+
+        loss = (mean_r - mean_g) ** 2 + (mean_g - mean_b) ** 2 + (mean_b - mean_r) ** 2
+        return loss
+    
+    def illumination_smoothness_loss(self, curve_params):
+        """Keep curve parameters spatially smooth."""
+        # curve_params is (B, 24, H, W)
+        grad_x = torch.abs(curve_params[:, :, :, :-1] - curve_params[:, :, :, 1:])
+        grad_y = torch.abs(curve_params[:, :, :-1, :] - curve_params[:, :, 1:, :])
+        loss = torch.mean(grad_x) + torch.mean(grad_y)
+        return loss
+
     def compute_loss(self, batch):
-        enhanced = self.forward(batch)
-        # compute average brightness of the enhanced image
-        avg_brightness = torch.mean(enhanced)
-        # target brightness is 0.6
-        target_brightness = 0.6
-        exposure_loss = torch.mean((avg_brightness - target_brightness) ** 2)
-        return exposure_loss
+        """Compute the full Zero-DCE loss with all 4 components."""
+        x = batch[0]
+        curve_params = self.forward(batch)
+        enhanced = self.enhance(batch)
+
+        loss_exp = self.exposure_loss(enhanced)
+        loss_spa = self.spatial_consistency_loss(enhanced, x)
+        loss_col = self.color_constancy_loss(enhanced)
+        loss_ill = self.illumination_smoothness_loss(curve_params)
+
+        # weighted sum — weights from the original paper
+        total_loss = (
+            10 * loss_spa +
+            5  * loss_exp +
+            1  * loss_col +
+            20 * loss_ill
+        )
+        return total_loss
 
     def load_ckpt(self, path):
         ckpt = torch.load(path, map_location="cpu")
