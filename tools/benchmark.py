@@ -15,11 +15,22 @@ def main():
     # parse the --config argument.
     parser = argparse.ArgumentParser(description="Run LLIE benchmark")
     parser.add_argument("--config", type=str, required=True, help="Path to experiment config")
+    parser.add_argument("--opts", nargs="+", default=[], help="Override config values e.g. method=clahe lr=0.0002")
     args = parser.parse_args()
 
     #  load the config and merge with defaults
     config = load_config(args.config)
-
+    for opt in args.opts:
+        key, value = opt.split("=")
+        try:
+            value = int(value)
+        except ValueError:
+            try:
+                value = float(value)
+            except ValueError:
+                pass
+        config[key] = value
+        
     # lookup the method, dataset, and metric classes
     method = lookup(METHOD_REGISTRY, config["method"])()
     dataset = lookup(DATASET_REGISTRY, config["dataset"])(config["data_root"], split="test")

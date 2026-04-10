@@ -43,7 +43,7 @@ class LOLv1(BaseDataset):
     
     def get_meta(self):
         return {
-            "name": "lol_v1",
+            "name": "lolv1",
             "type": "srgb",
             "paired": True,
             "eval_channel": "y"

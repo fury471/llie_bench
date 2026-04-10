@@ -20,7 +20,7 @@ class Evaluator:
             progress_bar = tqdm(dataloader, desc=f"Evaluating {method_name} on {dataset_name}")
             for batch in progress_bar:
                 batch = [x.to(self.device) for x in batch]
-                predictions = self.model.forward(batch)
+                predictions = self.model.enhance(batch)
 
                 for metric in metrics:
                     metric.compute(predictions, batch[1])
