@@ -6,9 +6,10 @@ import methods.zerodce
 import methods.clahe
 
 # Datasets
-import datasets.lolv1
-import datasets.lolv2
+import datasets_loaders.lolv1
+import datasets_loaders.lolv2
 
 # Metrics
 import metrics.psnr
 import metrics.ssim
+import metrics.niqe

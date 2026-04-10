@@ -8,3 +8,6 @@ matplotlib
 pyyaml
 tqdm
 piqa
+scikit-image
+piq
+pyiqa

@@ -21,12 +21,14 @@ def test_registry():
     assert "lolv2" in DATASET_REGISTRY, "LOLv2 not registered"
     assert "psnr" in METRIC_REGISTRY, "PSNR not registered"
     assert "ssim" in METRIC_REGISTRY, "SSIM not registered"
+    assert "niqe" in METRIC_REGISTRY, "NIQE not registered"
     ok("zerodce registered")
     ok("clahe registered")
     ok("lolv1 registered")
     ok("lolv2 registered")
     ok("psnr registered")
     ok("ssim registered")
+    ok("niqe registered")
 
 def test_config():
     section("Config Merging")
@@ -57,9 +59,17 @@ def test_metrics():
     gt = torch.rand(3, 64, 64)
     for metric_name in ["psnr", "ssim"]:
         metric = lookup(METRIC_REGISTRY, metric_name)()
+        pred = torch.rand(3, 64, 64)
+        gt = torch.rand(3, 64, 64)
         metric.compute(pred, gt)
         result = metric.aggregate()
         ok(f"{metric_name}: {result:.4f}")
+
+    # NIQE needs larger images
+    niqe = lookup(METRIC_REGISTRY, "niqe")()
+    pred_large = torch.rand(3, 128, 128)
+    niqe.compute(pred_large, None)
+    ok(f"niqe: {niqe.aggregate():.4f}")
 
 def test_dataset(dataset_name, data_root, split="test"):
     section(f"Dataset: {dataset_name}")

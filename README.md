@@ -38,7 +38,7 @@ python tools/inference.py --method clahe --input your_image.png --output results
 - `engine/` — trainer, evaluator, benchmark runner
 - `core/` — registry, config, logger, checkpoint, seed, protocol
 - `methods/` — enhancement algorithm plugins
-- `datasets/` — dataset plugins
+- `datasets_loaders/` — dataset plugins
 - `metrics/` — metric plugins
 - `configs/` — YAML configs for experiments, methods, datasets, metrics
 - `docs/` — documentation
@@ -47,13 +47,13 @@ python tools/inference.py --method clahe --input your_image.png --output results
 
 The project is built on 5 layers:
 
-| Layer                    | Folder(s)                         | Responsibility                                       |
-| ------------------------ | --------------------------------- | ---------------------------------------------------- |
-| Layer 1 — Entry Points   | `tools/`                          | CLI scripts, thin wrappers                           |
-| Layer 2 — Engine         | `engine/`                         | Training and evaluation logic                        |
-| Layer 3 — Core Framework | `core/`                           | Registry, config, logger, checkpoint, seed, protocol |
-| Layer 4 — Plugins        | `methods/` `datasets/` `metrics/` | Algorithms, datasets, metrics                        |
-| Layer 5 — Infrastructure | `configs/` `docs/`                | YAML configs, documentation                          |
+| Layer                    | Folder(s)                                 | Responsibility                                       |
+| ------------------------ | ----------------------------------------- | ---------------------------------------------------- |
+| Layer 1 — Entry Points   | `tools/`                                  | CLI scripts, thin wrappers                           |
+| Layer 2 — Engine         | `engine/`                                 | Training and evaluation logic                        |
+| Layer 3 — Core Framework | `core/`                                   | Registry, config, logger, checkpoint, seed, protocol |
+| Layer 4 — Plugins        | `methods/` `datasets_loaders/` `metrics/` | Algorithms, datasets, metrics                        |
+| Layer 5 — Infrastructure | `configs/` `docs/`                        | YAML configs, documentation                          |
 
 ## Design Principle
 
@@ -172,10 +172,10 @@ batch_size: 8
 
 ### Adding a New Dataset
 
-**Step 1** — create `datasets/your_dataset.py`:
+**Step 1** — create `datasets_loaders/your_dataset.py`:
 
 ```python
-from datasets.base import BaseDataset
+from datasets_loaders.base import BaseDataset
 from core.registry import DATASET_REGISTRY
 
 @DATASET_REGISTRY.register("your_dataset")

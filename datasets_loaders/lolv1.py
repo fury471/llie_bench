@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import torch
 from pathlib import Path
-from datasets.base import BaseDataset
+from datasets_loaders.base import BaseDataset
 from core.registry import DATASET_REGISTRY
 
 @DATASET_REGISTRY.register("lolv1")
