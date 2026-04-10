@@ -18,11 +18,13 @@ def test_registry():
     assert "zerodce" in METHOD_REGISTRY, "ZeroDCE not registered"
     assert "clahe" in METHOD_REGISTRY, "CLAHE not registered"
     assert "lolv1" in DATASET_REGISTRY, "LOLv1 not registered"
+    assert "lolv2" in DATASET_REGISTRY, "LOLv2 not registered"
     assert "psnr" in METRIC_REGISTRY, "PSNR not registered"
     assert "ssim" in METRIC_REGISTRY, "SSIM not registered"
     ok("zerodce registered")
     ok("clahe registered")
     ok("lolv1 registered")
+    ok("lolv2 registered")
     ok("psnr registered")
     ok("ssim registered")
 
@@ -83,6 +85,7 @@ if __name__ == "__main__":
     test_method("clahe",   (1, 3, 64, 64), (1, 3, 64, 64))
     test_metrics()
     test_dataset("lolv1", "data/LOLdataset", split="test")
+    test_dataset("lolv2", "data/LOL-v2/LOL-v2", split="Test")
 
     print(f"\n{'=' * 50}")
     print("  ALL TESTS PASSED")

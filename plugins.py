@@ -7,6 +7,7 @@ import methods.clahe
 
 # Datasets
 import datasets.lolv1
+import datasets.lolv2
 
 # Metrics
 import metrics.psnr

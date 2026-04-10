@@ -83,6 +83,28 @@ data/LOLdataset/
     └── high/
 ```
 
+### LOL-v2
+1. Download from: https://github.com/flyywh/CVPR-2020-Semi-Low-Light
+2. Extract and place under `data/LOL-v2/`
+3. Expected structure:
+```
+data/LOL-v2/LOL-v2/
+├── Real_captured/
+│   ├── Train/
+│   │   ├── Low/
+│   │   └── Normal/
+│   └── Test/
+│       ├── Low/
+│       └── Normal/
+└── Synthetic/
+    ├── Train/
+    │   ├── Low/
+    │   └── Normal/
+    └── Test/
+        ├── Low/
+        └── Normal/
+```
+
 ## Usage
 
 ```bash
