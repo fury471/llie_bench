@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 import torch
 
+@METHOD_REGISTRY.register("clahe")
 class CLAHE(BaseMethod):
     def __init__(self, clip_limit=2.0, tile_size=8):
         super().__init__()
@@ -56,6 +57,3 @@ class CLAHE(BaseMethod):
     
     def enhance(self, batch):
         return self.forward(batch)
-
-# Register the method in the global registry
-METHOD_REGISTRY["clahe"] = CLAHE

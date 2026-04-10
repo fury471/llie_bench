@@ -107,6 +107,7 @@ python tools/benchmark.py --config configs/experiments/full_bench_lolv1.yaml
 from methods.base import BaseMethod
 from core.registry import METHOD_REGISTRY
 
+@METHOD_REGISTRY.register("your_method")
 class YourMethod(BaseMethod):
     def __init__(self):
         super().__init__()
@@ -137,8 +138,6 @@ class YourMethod(BaseMethod):
             "type": "srgb",  # or "raw"
             "paired": True,  # or False
         }
-
-METHOD_REGISTRY["your_method"] = YourMethod
 ```
 
 **Step 2** — create `configs/methods/your_method.yaml`:
@@ -157,6 +156,7 @@ batch_size: 8
 from datasets.base import BaseDataset
 from core.registry import DATASET_REGISTRY
 
+@DATASET_REGISTRY.register("your_dataset")
 class YourDataset(BaseDataset):
     def __init__(self, root, split="train"):
         super().__init__()
@@ -178,8 +178,6 @@ class YourDataset(BaseDataset):
             "paired": True,       # or False
             "eval_channel": "y",  # or "rgb"
         }
-
-DATASET_REGISTRY["your_dataset"] = YourDataset
 ```
 
 **Step 2** — create `configs/datasets/your_dataset.yaml`:
@@ -196,6 +194,7 @@ data_root: data/your_dataset
 from metrics.base import BaseMetric
 from core.registry import METRIC_REGISTRY
 
+@METRIC_REGISTRY.register("your_metric")
 class YourMetric(BaseMetric):
     def __init__(self):
         super().__init__()
@@ -212,8 +211,6 @@ class YourMetric(BaseMetric):
 
     def reset(self):
         self.values = []
-
-METRIC_REGISTRY["your_metric"] = YourMetric
 ```
 
 **Step 2** — create `configs/metrics/your_metric.yaml`:

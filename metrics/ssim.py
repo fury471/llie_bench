@@ -2,6 +2,7 @@ from piqa import SSIM
 from metrics.base import BaseMetric
 from core.registry import METRIC_REGISTRY
 
+@METRIC_REGISTRY.register("ssim")
 class SSIMMetric(BaseMetric):
     def __init__(self):
         super().__init__()
@@ -18,6 +19,3 @@ class SSIMMetric(BaseMetric):
     
     def reset(self):
         self.values = []
-
-# Register the metric in the global registry
-METRIC_REGISTRY["ssim"] = SSIMMetric

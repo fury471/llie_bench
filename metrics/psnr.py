@@ -2,6 +2,7 @@ import torch
 from metrics.base import BaseMetric
 from core.registry import METRIC_REGISTRY
 
+@METRIC_REGISTRY.register("psnr")
 class PSNRMetric(BaseMetric):
     def __init__(self):
         super().__init__()
@@ -18,6 +19,3 @@ class PSNRMetric(BaseMetric):
     
     def reset(self):
         self.values = []
-
-# Register the metric in the global registry
-METRIC_REGISTRY["psnr"] = PSNRMetric

@@ -5,6 +5,7 @@ from pathlib import Path
 from datasets.base import BaseDataset
 from core.registry import DATASET_REGISTRY
 
+@DATASET_REGISTRY.register("lolv1")
 class LOLv1(BaseDataset):
     def __init__(self, root, split="train"):
         super().__init__()
@@ -48,6 +49,3 @@ class LOLv1(BaseDataset):
             "paired": True,
             "eval_channel": "y"
         }
-    
-# Register the dataset in the global registry
-DATASET_REGISTRY["lolv1"] = LOLv1

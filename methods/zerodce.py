@@ -13,6 +13,7 @@ from core.registry import METHOD_REGISTRY
 | Illumination Smoothness : makes enhancement smooth spatially     |
 +------------------------------------------------------------------+
 """
+@METHOD_REGISTRY.register("zerodce")
 class ZeroDCE(BaseMethod):
     def __init__(self):
         super().__init__()
@@ -117,7 +118,4 @@ class ZeroDCE(BaseMethod):
             A = curve_params[:, i*3:(i+1)*3, :, :]
             enhanced = enhanced + A * enhanced * (1.0 - enhanced)
         return enhanced
-    
-# Register the method in the global registry
-METHOD_REGISTRY["zerodce"] = ZeroDCE
 
