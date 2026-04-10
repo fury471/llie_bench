@@ -5,10 +5,7 @@ from core.registry import METHOD_REGISTRY, DATASET_REGISTRY, METRIC_REGISTRY, lo
 from engine.benchmark_runner import BenchmarkRunner
 
 # import plugins so they register themselves
-import methods.zerodce
-import datasets.lolv1
-import metrics.psnr
-import metrics.ssim
+import plugins
 
 # all the logic here
 def main():

@@ -5,9 +5,7 @@ from engine.trainer import Trainer
 import torch
 
 # import plugins so they register themselves
-import methods.zerodce
-import methods.clahe
-import datasets.lolv1
+import plugins
 
 # all the logic here
 def main():

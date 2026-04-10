@@ -6,8 +6,7 @@ import argparse
 from core.registry import METHOD_REGISTRY, lookup
 
 # import plugins so they register themselves
-import methods.zerodce
-import methods.clahe
+import plugins
 
 def main():
     # parse arguments
