@@ -1,0 +1,13 @@
+method: retinexnet
+dataset: lolv1
+data_root: data/LOLdataset
+batch_size: 8
+lr: 0.0001
+epochs: 100
+seed: 42
+log_dir: logs/retinexnet_lolv1
+ckpt_dir: checkpoints/retinexnet_lolv1
+metrics:
+  - psnr
+  - ssim
+  - niqe

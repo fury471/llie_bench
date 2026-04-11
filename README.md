@@ -24,8 +24,16 @@ pip install -r requirements.txt
 See [Data Setup](#data-setup) section.
 
 ### 3. Train a method
+
+**Option 1 — Using experiment config (recommended for reproducibility):**
 ```bash
 python -m tools.train --config configs/experiments/full_bench_lolv1.yaml
+```
+
+**Option 2 — Override config values on the fly:**
+
+```bash
+python -m tools.train --config configs/experiments/full_bench_lolv1.yaml --opts method=retinexnet log_dir=logs/retinexnet_lolv1 ckpt_dir=checkpoints/retinexnet_lolv1
 ```
 
 ### 4. Run inference on a single image
