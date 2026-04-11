@@ -59,7 +59,8 @@ python -m tools.export_tables --log_dir logs/zerodce_lolv1/eval --output results
 
 ```mermaid
 flowchart TD
-    Start([Execute: tools/train.py]) --> Cfg
+    Start([Execute:
+tools/train.py]) --> Cfg
     
     subgraph Setup Phase
         Cfg[load_config: 
@@ -95,7 +96,8 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start([Execute: tools/benchmark.py]) --> Cfg
+    Start([Execute:
+tools/benchmark.py]) --> Cfg
     
     subgraph Setup Phase
         Cfg[load_config: 
@@ -132,7 +134,8 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start([Execute: tools/inference.py]) --> Lookup
+    Start([Execute:
+tools/inference.py]) --> Lookup
 
     subgraph Setup Phase
         Lookup[lookup METHOD_REGISTRY: 
