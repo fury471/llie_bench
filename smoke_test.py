@@ -16,32 +16,34 @@ def ok(msg):
 def test_registry():
     section("Registry")
     assert "zerodce" in METHOD_REGISTRY, "ZeroDCE not registered"
-    assert "clahe" in METHOD_REGISTRY, "CLAHE not registered"
-    assert "lolv1" in DATASET_REGISTRY, "LOLv1 not registered"
-    assert "lolv2" in DATASET_REGISTRY, "LOLv2 not registered"
-    assert "psnr" in METRIC_REGISTRY, "PSNR not registered"
-    assert "ssim" in METRIC_REGISTRY, "SSIM not registered"
-    assert "niqe" in METRIC_REGISTRY, "NIQE not registered"
     ok("zerodce registered")
+    assert "clahe" in METHOD_REGISTRY, "CLAHE not registered"
     ok("clahe registered")
+    assert "retinexnet" in METHOD_REGISTRY, "RetinexNet not registered"
+    ok("retinexnet registered")
+    assert "lolv1" in DATASET_REGISTRY, "LOLv1 not registered"
     ok("lolv1 registered")
+    assert "lolv2" in DATASET_REGISTRY, "LOLv2 not registered"
     ok("lolv2 registered")
+    assert "psnr" in METRIC_REGISTRY, "PSNR not registered"
     ok("psnr registered")
+    assert "ssim" in METRIC_REGISTRY, "SSIM not registered"
     ok("ssim registered")
+    assert "niqe" in METRIC_REGISTRY, "NIQE not registered"
     ok("niqe registered")
 
 def test_config():
     section("Config Merging")
     config = load_config("configs/experiments/full_bench_lolv1.yaml")
     assert "method" in config, "method key missing"
-    assert "dataset" in config, "dataset key missing"
-    assert "metrics" in config, "metrics key missing"
-    assert "lr" in config, "lr key missing — method config not merged"
-    assert "data_root" in config, "data_root key missing — dataset config not merged"
     ok(f"method:    {config['method']}")
+    assert "dataset" in config, "dataset key missing"
     ok(f"dataset:   {config['dataset']}")
+    assert "metrics" in config, "metrics key missing"
     ok(f"metrics:   {config['metrics']}")
+    assert "lr" in config, "lr key missing — method config not merged"
     ok(f"lr:        {config['lr']}")
+    assert "data_root" in config, "data_root key missing — dataset config not merged"
     ok(f"data_root: {config['data_root']}")
 
 def test_method(method_name, input_shape, expected_output_shape):
@@ -76,12 +78,12 @@ def test_dataset(dataset_name, data_root, split="test"):
     dataset = lookup(DATASET_REGISTRY, dataset_name)(data_root, split=split)
     sample = dataset[0]
     assert len(sample) == 2, "Expected [low, high] pair"
+    ok(f"size:       {len(dataset)}")
     low, high = sample
     assert low.shape == high.shape, "Low and high shapes must match"
-    assert low.max() <= 1.0 and low.min() >= 0.0, "Images must be normalized to [0, 1]"
-    ok(f"size:       {len(dataset)}")
     ok(f"low shape:  {low.shape}")
     ok(f"high shape: {high.shape}")
+    assert low.max() <= 1.0 and low.min() >= 0.0, "Images must be normalized to [0, 1]"
     ok(f"normalized: [0, 1]")
 
 if __name__ == "__main__":
@@ -93,6 +95,7 @@ if __name__ == "__main__":
     test_config()
     test_method("zerodce", (1, 3, 64, 64), (1, 3, 64, 64))
     test_method("clahe",   (1, 3, 64, 64), (1, 3, 64, 64))
+    test_method("retinexnet", (1, 3, 64, 64), (1, 3, 64, 64))
     test_metrics()
     test_dataset("lolv1", "data/LOLdataset", split="test")
     test_dataset("lolv2", "data/LOL-v2/LOL-v2", split="Test")

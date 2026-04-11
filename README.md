@@ -30,10 +30,11 @@ python -m tools.train --config configs/experiments/full_bench_lolv1.yaml
 
 ### 4. Run inference on a single image
 ```bash
-python -m tools.inference --method zerodce --ckpt checkpoints/zerodce_lolv1/checkpoint_epoch_099.pth --input your_image.png --output results/enhanced.png
+python -m tools.inference --method your_method --ckpt path/checkpoint_epoch_099.pth --input your_image.png --output results/enhanced.png
 ```
 
 ### 5. Run benchmark
+
 ```bash
 python -m tools.benchmark --config configs/experiments/full_bench_lolv1.yaml
 ```
@@ -427,3 +428,19 @@ metrics:
 
 ### Key Rule
 > The engine never changes. Only plugins change.
+
+### Registering Your Plugin
+After creating your plugin file, add it to `plugins.py`:
+
+```python
+# Methods
+import methods.your_method
+
+# Datasets
+import datasets_loaders.your_dataset
+
+# Metrics
+import metrics.your_metric
+```
+
+This ensures your plugin is automatically registered when any tool runs.

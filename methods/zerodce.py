@@ -25,6 +25,7 @@ class ZeroDCE(BaseMethod):
         self.conv5 = nn.Conv2d(32, 32, 3, padding=1)
         self.conv6 = nn.Conv2d(32, 32, 3, padding=1)
         self.conv7 = nn.Conv2d(32, 24, 3, padding=1)
+        # activations
         self.relu = nn.ReLU(inplace=True)
         self.tanh = nn.Tanh()
 

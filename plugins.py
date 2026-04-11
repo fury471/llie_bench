@@ -4,6 +4,7 @@
 # Methods
 import methods.zerodce
 import methods.clahe
+import methods.retinexnet
 
 # Datasets
 import datasets_loaders.lolv1

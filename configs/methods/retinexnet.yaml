@@ -1,0 +1,4 @@
+method: retinexnet
+lr: 0.0001
+epochs: 100
+batch_size: 8
