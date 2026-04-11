@@ -43,14 +43,16 @@ python -m tools.benchmark --config configs/experiments/full_bench_lolv1.yaml
 python -m tools.inference --method clahe --input your_image.png --output results/enhanced.png
 ```
 
-### 7. Run the interactive demo
-```bash
-python -m tools.demo
-```
+### 7. Export results table
 
-### 8. Export results table
 ```bash
 python -m tools.export_tables --log_dir logs/zerodce_lolv1/eval --output results/table.csv
+```
+
+### 8. Run the interactive demo
+
+```bash
+python -m tools.demo
 ```
 
 ## Pipeline Internals
@@ -109,7 +111,8 @@ flowchart TD
     MethodLoop --> |Next| DatasetLoop{For Each Dataset}
 
     subgraph Evaluation Pipeline
-        Compat[Protocol.check_compatibility: 
+        Compat[Protocol.
+        check_compatibility: 
         Enforce fairness] --> Eval[Initialize Evaluator]
         Eval --> Infer[model.enhance: 
         Batch inference]
@@ -182,17 +185,28 @@ flowchart TD
 ```mermaid
 flowchart TD
     Start([Execute: 
-    tools/export_tables.py]) --> Read
+    tools/demo.py]) --> Gradio
 
-    subgraph Data Processing
-        Read[pd.read_csv: 
-        Read logs CSV] --> Pivot[pivot_table: 
-        Reshape to Method x Metric]
+    subgraph UI Interaction
+        Gradio[Launch Gradio Interface] --> Input[User uploads image 
+        & selects method]
     end
 
-    Pivot --> Output[Print & Save to CSV]
-    
-    Output --> Finish([End Export])
+    Input --> Ckpt
+
+    subgraph Model Processing
+        Ckpt[Auto-load latest checkpoint] --> Enhance[method.enhance: 
+        Enhance image]
+    end
+
+    Enhance --> Output
+
+    subgraph Display
+        Output[Display before 
+        & after side-by-side]
+    end
+
+    Output -.-> |User uploads new image| Input
 ```
 
 ## Project Structure
