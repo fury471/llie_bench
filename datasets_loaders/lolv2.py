@@ -23,8 +23,12 @@ class LOLv2(BaseDataset):
         # Get the filename and build full paths for both low and high images
         fname = self.filenames[idx]
         low_path = self.low_dir / fname
-        number = fname.replace("low", "")  # "low00690.png" → "00690.png"
-        normal_path = self.normal_dir / f"normal{number}"
+
+        if self.subset == "Real_captured":
+            number = fname.replace("low", "")
+            normal_path = self.normal_dir / f"normal{number}"
+        else:
+            normal_path = self.normal_dir / fname
 
         # Load both images using OpenCV
         low = cv2.imread(str(low_path))

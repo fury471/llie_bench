@@ -1,6 +1,7 @@
 import torch
 import argparse
 from core.config import load_config
+from pathlib import Path
 from core.registry import METHOD_REGISTRY, DATASET_REGISTRY, METRIC_REGISTRY, lookup
 from engine.benchmark_runner import BenchmarkRunner
 
@@ -30,7 +31,32 @@ def main():
         
     # lookup the method, dataset, and metric classes
     method = lookup(METHOD_REGISTRY, config["method"])()
-    dataset = lookup(DATASET_REGISTRY, config["dataset"])(config["data_root"], split=config.get("test_split", "test"))
+
+    if config.get("ckpt"):
+        # explicit checkpoint provided via --opts
+        method.load_ckpt(config["ckpt"])
+    elif "ckpt_dir" in config and Path(config["ckpt_dir"]).exists():
+        # auto-load latest checkpoint from ckpt_dir
+        ckpts = sorted(Path(config["ckpt_dir"]).glob("*.pth"))
+        if ckpts:
+            latest = ckpts[-1]
+            print(f"Auto-loading latest checkpoint: {latest}")
+            method.load_ckpt(str(latest))
+        else:
+            print("No checkpoint found — using random weights")
+    else:
+        print("No checkpoint — using random weights")
+
+    dataset_kwargs = {
+        "split": config.get("test_split", "test")
+    }
+    if "subset" in config:
+        dataset_kwargs["subset"] = config["subset"]
+
+    dataset = lookup(DATASET_REGISTRY, config["dataset"])(
+        config["data_root"],
+        **dataset_kwargs
+    )
     metrics = [lookup(METRIC_REGISTRY, m)() for m in config["metrics"]]
 
     # detect the device automatically (use GPU if available)
