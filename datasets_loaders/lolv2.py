@@ -44,7 +44,7 @@ class LOLv2(BaseDataset):
     
     def get_meta(self):
         return {
-            "name": "lolv2",
+            "name": f"lolv2_{self.subset.lower()}",
             "type": "srgb",
             "paired": True,
             "eval_channel": "y"
