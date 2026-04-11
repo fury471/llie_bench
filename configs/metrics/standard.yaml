@@ -1,3 +1,4 @@
 metrics:
   - psnr
   - ssim
+  - niqe

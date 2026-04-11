@@ -9,7 +9,7 @@ class SSIMMetric(BaseMetric):
         self.values = []
 
     def compute(self, pred, gt):
-        ssim_module = SSIM()
+        ssim_module = SSIM().to(pred.device)
         ssim = ssim_module(pred.unsqueeze(0), gt.unsqueeze(0)).item()
         self.values.append(ssim)
         return ssim

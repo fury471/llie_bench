@@ -22,13 +22,14 @@ class Evaluator:
                 batch = [x.to(self.device) for x in batch]
                 predictions = self.model.enhance(batch)
 
-                for metric in metrics:
-                    metric.compute(predictions, batch[1])
+                for i in range(predictions.shape[0]):
+                    for metric in metrics:
+                        metric.compute(predictions[i], batch[1][i])
 
         # after loop — aggregate each metric and log the result
         for metric in metrics:
             result = metric.aggregate()
-            self.logger.log(method_name, dataset_name, metric.__class__.__name__, result)
-        
+            metric_name = metric.__class__.__name__.replace("Metric", "").lower()
+            self.logger.log(method_name, dataset_name, metric_name, result)
 
     

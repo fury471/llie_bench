@@ -23,7 +23,7 @@ class BenchmarkRunner:
                 # check protocol to see if this method-dataset pair should be evaluated
                 self.protocol.check_compatibility(method.get_meta(), dataset.get_meta())
 
-                evaluator = Evaluator(method, self.device, self.logger.log_dir)
+                evaluator = Evaluator(method, self.device, self.logger.log_dir / "eval")
                 dataloader = DataLoader(dataset, batch_size=8, shuffle=False)
                 method_name = method.get_meta()["name"]
                 dataset_name = dataset.get_meta()["name"]
