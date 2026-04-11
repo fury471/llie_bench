@@ -1,2 +1,3 @@
 dataset: lolv1
 data_root: data/LOLdataset
+test_split: test

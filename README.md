@@ -24,12 +24,12 @@ python -m tools.inference --method zerodce --ckpt checkpoints/zerodce_lolv1/chec
 
 ### 5. Run benchmark
 ```bash
-python tools/benchmark.py --config configs/experiments/full_bench_lolv1.yaml
+python -m tools.benchmark --config configs/experiments/full_bench_lolv1.yaml
 ```
 
 ### 6. Run with traditional method (no training needed)
 ```bash
-python tools/inference.py --method clahe --input your_image.png --output results/enhanced.png
+python -m tools.inference --method clahe --input your_image.png --output results/enhanced.png
 ```
 
 ## Project Structure
@@ -108,7 +108,7 @@ data/LOL-v2/LOL-v2/
 ## Usage
 
 ```bash
-python tools/benchmark.py --config configs/experiments/full_bench_lolv1.yaml
+python -m tools.benchmark --config configs/experiments/full_bench_lolv1.yaml
 ```
 
 ## Adding New Plugins

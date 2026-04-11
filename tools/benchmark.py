@@ -30,7 +30,7 @@ def main():
         
     # lookup the method, dataset, and metric classes
     method = lookup(METHOD_REGISTRY, config["method"])()
-    dataset = lookup(DATASET_REGISTRY, config["dataset"])(config["data_root"], split="test")
+    dataset = lookup(DATASET_REGISTRY, config["dataset"])(config["data_root"], split=config.get("test_split", "test"))
     metrics = [lookup(METRIC_REGISTRY, m)() for m in config["metrics"]]
 
     # detect the device automatically (use GPU if available)
