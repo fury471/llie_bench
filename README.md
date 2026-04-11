@@ -13,6 +13,7 @@ The project is built around a plugin architecture:
 ## Table of Contents
 
 - [Quick Start](#quick-start)
+- [CLI Reference](#cli-reference)
 - [Config Precedence](#config-precedence)
 - [Project Structure](#project-structure)
 - [Architecture](#architecture)
@@ -84,6 +85,93 @@ python -m tools.demo
 ```
 
 The demo method list is built from the registry, so newly registered methods appear automatically.
+
+## CLI Reference
+
+Most scripts in this project follow the same pattern:
+
+```bash
+python -m tools.<script_name> [arguments]
+```
+
+### `--config`
+
+Used by `tools.train` and `tools.benchmark`.
+
+It points to an experiment YAML file:
+
+```bash
+python -m tools.train --config configs/experiments/full_bench_lolv1.yaml
+```
+
+The experiment config is the main entry point for reproducible runs.
+
+### `--opts`
+
+Used by `tools.train` and `tools.benchmark`.
+
+It applies one or more last-mile overrides on top of the loaded config. Each override must be written as `key=value`.
+
+Example:
+
+```bash
+python -m tools.train --config configs/experiments/full_bench_lolv1.yaml --opts lr=0.0002 batch_size=4
+```
+
+Multiple overrides are written as space-separated `key=value` pairs after a single `--opts`.
+
+Common examples:
+
+```bash
+--opts method=retinexnet
+--opts batch_size=2 patch_size=96
+--opts train_phase=joint ckpt=checkpoints/retinexnet_lolv1_decom/checkpoint_epoch_020.pth
+```
+
+### `--method`
+
+Used by `tools.inference`.
+
+It selects the registered method plugin:
+
+```bash
+python -m tools.inference --method zerodce --ckpt checkpoints/zerodce_lolv1/checkpoint_epoch_099.pth --input your_image.png --output results/enhanced.png
+```
+
+### `--ckpt`
+
+Used by `tools.inference`, and also accepted through config for training and benchmarking.
+
+It points to a specific checkpoint file:
+
+```bash
+--ckpt checkpoints/zerodce_lolv1/checkpoint_epoch_099.pth
+```
+
+Use this when you want an exact checkpoint, not just the latest one.
+
+### `--ckpt_dir`
+
+Used by `tools.inference`, and also accepted through config for benchmarking.
+
+It points to a checkpoint directory. The tool will auto-load the latest `.pth` file in that directory:
+
+```bash
+--ckpt_dir checkpoints/zerodce_lolv1
+```
+
+### `--input` and `--output`
+
+Used by `tools.inference`.
+
+- `--input` is the input image path
+- `--output` is where the enhanced image will be saved
+
+Example:
+
+```bash
+python -m tools.inference --method clahe --input data/LOLdataset/eval15/low/1.png --output results/clahe_1.png
+```
 
 ## Config Precedence
 

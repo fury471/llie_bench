@@ -95,7 +95,7 @@ class DecomNet(nn.Module):
     training to stay compatible with this benchmark's full-resolution pipeline.
     """
 
-    def __init__(self, channels=16):
+    def __init__(self, channels=64):
         super().__init__()
         self.stem = nn.Conv2d(
             4,
@@ -143,7 +143,7 @@ class RelightNet(nn.Module):
     does not rely on accidental padding/resize compensation.
     """
 
-    def __init__(self, channels=16):
+    def __init__(self, channels=64):
         super().__init__()
         self.enc0 = ConvBlock(4, channels, 3, activation=True)
         self.enc1 = ConvBlock(channels, channels, 3, stride=2, activation=True)
@@ -276,7 +276,7 @@ class RetinexNet(BaseMethod):
         return (
             recon_low
             + recon_high
-            + 0.001 * (mutual_low + mutual_high)
+            + 0.1 * (mutual_low + mutual_high)
             + 0.1 * equal_r
             + 0.1 * (smooth_low + smooth_high)
         )
