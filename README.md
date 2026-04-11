@@ -32,6 +32,11 @@ python -m tools.benchmark --config configs/experiments/full_bench_lolv1.yaml
 python -m tools.inference --method clahe --input your_image.png --output results/enhanced.png
 ```
 
+### 7. Run the interactive demo
+```bash
+python -m tools.demo
+```
+
 ## Project Structure
 
 - `tools/` — entry points (CLI scripts)
