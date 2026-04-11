@@ -9,7 +9,7 @@ class PSNRMetric(BaseMetric):
         self.values = []
 
     def compute(self, pred, gt):
-        mse = torch.mean((pred - gt) ** 2)
+        mse = torch.mean((pred - gt) ** 2).clamp_min(1e-12)
         psnr = 10 * torch.log10(1.0 / mse)
         self.values.append(psnr.item())
         return psnr

@@ -10,3 +10,4 @@ ckpt_dir: checkpoints/zerodce_lolv1
 metrics:
   - psnr
   - ssim
+  - niqe

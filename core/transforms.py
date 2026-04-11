@@ -9,6 +9,10 @@ class RandomCrop:
     def __call__(self, tensors):
         # tensors is a list of (C, H, W) tensors
         _, h, w = tensors[0].shape
+        if self.patch_size > h or self.patch_size > w:
+            raise ValueError(
+                f"Patch size {self.patch_size} is larger than image size {(h, w)}."
+            )
         rh = random.randint(0, h - self.patch_size)
         rw = random.randint(0, w - self.patch_size)
         return [t[:, rh:rh+self.patch_size, rw:rw+self.patch_size] for t in tensors]

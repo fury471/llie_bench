@@ -1,14 +1,22 @@
 # LLIE Bench
 
-A modular benchmark framework for Low-Light Image Enhancement.
+A modular benchmark framework for low-light image enhancement.
+
+The project is built around a plugin architecture:
+
+- `methods/` contains enhancement algorithms
+- `datasets_loaders/` contains dataset adapters
+- `metrics/` contains evaluation metrics
+- `engine/` contains generic training and evaluation loops
+- `core/` contains shared framework utilities such as config loading, registries, logging, checkpoints, and protocol checks
 
 ## Table of Contents
 
 - [Quick Start](#quick-start)
-- [Pipeline Internals](#pipeline-internals)
+- [Config Precedence](#config-precedence)
 - [Project Structure](#project-structure)
 - [Architecture](#architecture)
-- [Setup](#setup)
+- [Pipeline Internals](#pipeline-internals)
 - [Data Setup](#data-setup)
 - [Usage](#usage)
 - [Adding New Plugins](#adding-new-plugins)
@@ -16,30 +24,38 @@ A modular benchmark framework for Low-Light Image Enhancement.
 ## Quick Start
 
 ### 1. Install dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
 ### 2. Download data
-See [Data Setup](#data-setup) section.
+
+See [Data Setup](#data-setup).
 
 ### 3. Train a method
 
-**Option 1 — Using experiment config (recommended for reproducibility):**
+Use an experiment config for reproducibility:
+
 ```bash
 python -m tools.train --config configs/experiments/full_bench_lolv1.yaml
 ```
 
-**Option 2 — Override config values on the fly:**
+Override a few values on the fly:
 
 ```bash
-python -m tools.train --config configs/experiments/full_bench_lolv1.yaml --opts method=retinexnet log_dir=logs/retinexnet_lolv1 ckpt_dir=checkpoints/retinexnet_lolv1
+python -m tools.train --config configs/experiments/full_bench_lolv1.yaml --opts lr=0.0002 batch_size=4
 ```
+
+If you switch to a different trainable method, prefer a dedicated experiment config or override all method-specific knobs you care about, such as `batch_size`, `patch_size`, `random_flip`, and `train_phase`.
 
 ### 4. Run inference on a single image
+
 ```bash
-python -m tools.inference --method your_method --ckpt path/checkpoint_epoch_099.pth --input your_image.png --output results/enhanced.png
+python -m tools.inference --method zerodce --ckpt checkpoints/zerodce_lolv1/checkpoint_epoch_099.pth --input your_image.png --output results/enhanced.png
 ```
+
+You can also pass `--ckpt_dir` instead of `--ckpt`. The tool will auto-load the latest checkpoint in that directory.
 
 ### 5. Run benchmark
 
@@ -47,7 +63,10 @@ python -m tools.inference --method your_method --ckpt path/checkpoint_epoch_099.
 python -m tools.benchmark --config configs/experiments/full_bench_lolv1.yaml
 ```
 
-### 6. Run with traditional method (no training needed)
+Benchmark evaluation uses `eval_batch_size` when present in config, otherwise it falls back to `batch_size`.
+
+### 6. Run with a traditional method
+
 ```bash
 python -m tools.inference --method clahe --input your_image.png --output results/enhanced.png
 ```
@@ -64,237 +83,168 @@ python -m tools.export_tables --log_dir logs/zerodce_lolv1/eval --output results
 python -m tools.demo
 ```
 
+The demo method list is built from the registry, so newly registered methods appear automatically.
+
+## Config Precedence
+
+Configuration is resolved in this order:
+
+1. Method, dataset, and metric YAMLs provide defaults.
+2. The experiment YAML overrides those defaults.
+3. CLI `--opts` overrides everything else.
+
+This means experiment configs are authoritative, and `--opts` should be treated as explicit last-mile overrides.
+
+## Project Structure
+
+- `tools/`: entry points
+- `engine/`: trainer, evaluator, benchmark runner
+- `core/`: registry, config, logger, checkpoint, protocol, seed, transforms
+- `methods/`: enhancement algorithm plugins
+- `datasets_loaders/`: dataset plugins
+- `metrics/`: metric plugins
+- `configs/`: YAML configs for experiments, methods, datasets, and metrics
+- `docs/`: documentation and benchmark protocol
+
+## Architecture
+
+The project is organized into five layers:
+
+| Layer | Folder(s) | Responsibility |
+| --- | --- | --- |
+| Entry Points | `tools/` | Thin CLI and demo wrappers |
+| Engine | `engine/` | Generic training and evaluation logic |
+| Core Framework | `core/` | Shared utilities and framework contracts |
+| Plugins | `methods/`, `datasets_loaders/`, `metrics/` | Algorithms, datasets, metrics |
+| Infrastructure | `configs/`, `docs/` | Configuration and documentation |
+
+## Design Principle
+
+> Write each piece of logic once, in one place, and avoid changing the engine for method-specific behavior.
+
+The engine should only contain capabilities that are generic across methods, datasets, and metrics. Algorithm-specific behavior belongs in plugins and configuration.
+
 ## Pipeline Internals
 
 ### Training Pipeline
 
 ```mermaid
 flowchart TD
-    Start([Execute: 
-    tools/train.py]) --> Cfg
-    
-    subgraph Setup Phase
-        Cfg[load_config: 
-        Merge YAMLs] --> RM[lookup METHOD_REGISTRY]
-        RM --> RD[lookup DATASET_REGISTRY]
-        RD --> DL[DataLoader: 
-        Batch Training Data]
-        DL --> Tr[Initialize Trainer]
-        Tr --> Seed[set_seed: 
-        Reproducibility]
-    end
-
-    Seed --> EpochLoop{For Each Epoch}
-
-    subgraph Training Loop
-        Loss[model.compute_loss] --> ZG[optimizer.zero_grad]
-        ZG --> Bwd[loss.backward]
-        Bwd --> Step[optimizer.step]
-    end
-
-    subgraph Logging & Saving
-        Log[Logger.log: 
-        Save to CSV] --> Ckpt[CheckpointManager.save]
-    end
-
-    EpochLoop --> Loss
-    Step --> Log
-    Ckpt --> |Next Epoch| EpochLoop
-    Ckpt --> |Max Epochs Reached| Finish([End Training])
+    Start["tools/train.py"] --> Cfg["load_config"]
+    Cfg --> BuildTransforms["Optional RandomCrop / RandomFlip"]
+    BuildTransforms --> Method["lookup METHOD_REGISTRY"]
+    Method --> Dataset["lookup DATASET_REGISTRY"]
+    Dataset --> Loader["DataLoader"]
+    Loader --> Phase["Optional method.set_phase(...)"]
+    Phase --> Ckpt["Optional method.load_ckpt(...)"]
+    Ckpt --> Trainer["Trainer.train(...)"]
+    Trainer --> Loss["model.compute_loss(batch)"]
+    Loss --> Backward["backward + optimizer.step"]
+    Backward --> Save["log + save checkpoint"]
 ```
 
 ### Benchmark Pipeline
 
 ```mermaid
 flowchart TD
-    Start([Execute: 
-    tools/benchmark.py]) --> Cfg
-    
-    subgraph Setup Phase
-        Cfg[load_config: 
-        Merge YAMLs] --> Ckpt[Auto-load latest checkpoint]
-        Ckpt --> BR[Initialize BenchmarkRunner]
-    end
-
-    BR --> MethodLoop{For Each Method}
-    MethodLoop --> |Next| DatasetLoop{For Each Dataset}
-
-    subgraph Evaluation Pipeline
-        Compat[Protocol.
-        check_compatibility: 
-        Enforce fairness] --> Eval[Initialize Evaluator]
-        Eval --> Infer[model.enhance: 
-        Batch inference]
-        Infer --> MetricLoop{For Each Metric}
-        
-        MetricLoop --> Compute[metric.compute: 
-        Per-image score]
-        Compute --> |Next Metric| MetricLoop
-        MetricLoop --> |All metrics done| Agg[metric.aggregate: 
-        Dataset mean]
-    end
-
-    DatasetLoop --> Compat
-    Agg --> |Next Dataset| DatasetLoop
-    DatasetLoop --> |All datasets done| MethodLoop
-    
-    MethodLoop --> |All methods done| Log[Logger.log: 
-    Save to CSV]
-    Log --> Finish([End Benchmark])
+    Start["tools/benchmark.py"] --> Cfg["load_config"]
+    Cfg --> Method["lookup METHOD_REGISTRY"]
+    Method --> Ckpt["resolve_checkpoint_path"]
+    Ckpt --> Dataset["lookup DATASET_REGISTRY"]
+    Dataset --> Metrics["lookup METRIC_REGISTRY"]
+    Metrics --> Runner["BenchmarkRunner.run(...)"]
+    Runner --> Protocol["Protocol.check_compatibility"]
+    Protocol --> Eval["Evaluator.evaluate(...)"]
+    Eval --> Infer["model.enhance(batch)"]
+    Infer --> Aggregate["metric.aggregate()"]
 ```
 
 ### Inference Pipeline
 
 ```mermaid
 flowchart TD
-    Start([Execute: 
-    tools/inference.py]) --> Lookup
-
-    subgraph Setup Phase
-        Lookup[lookup METHOD_REGISTRY: 
-        Find method] --> Ckpt[method.load_ckpt: 
-        Load weights]
-    end
-
-    Ckpt --> LoadImg
-
-    subgraph Image Processing
-        LoadImg[cv2.imread: 
-        Load input image] --> Norm[Normalize to 0-1 
-        & Convert to Tensor]
-        Norm --> Enhance[method.enhance: 
-        Run enhancement]
-        Enhance --> Save[cv2.imwrite: 
-        Save output image]
-    end
-
-    Save --> Finish([End Inference])
-```
-
-### Export Pipeline
-
-```mermaid
-flowchart TD
-    Start([Execute: 
-    tools/export_tables.py]) --> Read
-
-    subgraph Data Processing
-        Read[pd.read_csv: 
-        Read logs CSV] --> Pivot[pivot_table: 
-        Reshape to Method x Metric]
-    end
-
-    Pivot --> Output[Print & Save to CSV]
-    
-    Output --> Finish([End Export])
-```
-
-### Demo Pipeline
-
-```mermaid
-flowchart TD
-    Start([Execute: 
-    tools/demo.py]) --> Gradio
-
-    subgraph UI Interaction
-        Gradio[Launch Gradio Interface] --> Input[User uploads image 
-        & selects method]
-    end
-
-    Input --> Ckpt
-
-    subgraph Model Processing
-        Ckpt[Auto-load latest checkpoint] --> Enhance[method.enhance: 
-        Enhance image]
-    end
-
-    Enhance --> Output
-
-    subgraph Display
-        Output[Display before 
-        & after side-by-side]
-    end
-
-    Output -.-> |User uploads new image| Input
-```
-
-## Project Structure
-
-- `tools/` — entry points (CLI scripts)
-- `engine/` — trainer, evaluator, benchmark runner
-- `core/` — registry, config, logger, checkpoint, seed, protocol
-- `methods/` — enhancement algorithm plugins
-- `datasets_loaders/` — dataset plugins
-- `metrics/` — metric plugins
-- `configs/` — YAML configs for experiments, methods, datasets, metrics
-- `docs/` — documentation
-
-## Architecture
-
-The project is built on 5 layers:
-
-| Layer                    | Folder(s)                                 | Responsibility                                       |
-| ------------------------ | ----------------------------------------- | ---------------------------------------------------- |
-| Layer 1 — Entry Points   | `tools/`                                  | CLI scripts, thin wrappers                           |
-| Layer 2 — Engine         | `engine/`                                 | Training and evaluation logic                        |
-| Layer 3 — Core Framework | `core/`                                   | Registry, config, logger, checkpoint, seed, protocol |
-| Layer 4 — Plugins        | `methods/` `datasets_loaders/` `metrics/` | Algorithms, datasets, metrics                        |
-| Layer 5 — Infrastructure | `configs/` `docs/`                        | YAML configs, documentation                          |
-
-## Design Principle
-
-> Write each piece of logic once, in one place, and never touch it again when things change.
-
-This is called **low coupling**. The engine never knows what method, dataset, or metric it is talking to — it only knows abstract interfaces.
-
-## Setup
-
-```bash
-pip install -r requirements.txt
+    Start["tools/inference.py"] --> Method["lookup METHOD_REGISTRY"]
+    Method --> Ckpt["resolve_checkpoint_path"]
+    Ckpt --> Load["cv2.imread + tensor conversion"]
+    Load --> Infer["method.enhance([img_tensor])"]
+    Infer --> Save["cv2.imwrite"]
 ```
 
 ## Data Setup
 
 ### LOLv1
+
 1. Download from: https://daooshee.github.io/BMVC2018website/
 2. Extract and place under `data/LOLdataset/`
 3. Expected structure:
-```
+
+```text
 data/LOLdataset/
-├── our485/
-│   ├── low/
-│   └── high/
-└── eval15/
-    ├── low/
-    └── high/
+  our485/
+    low/
+    high/
+  eval15/
+    low/
+    high/
 ```
 
 ### LOL-v2
+
 1. Download from: https://github.com/flyywh/CVPR-2020-Semi-Low-Light
 2. Extract and place under `data/LOL-v2/`
 3. Expected structure:
-```
+
+```text
 data/LOL-v2/LOL-v2/
-├── Real_captured/
-│   ├── Train/
-│   │   ├── Low/
-│   │   └── Normal/
-│   └── Test/
-│       ├── Low/
-│       └── Normal/
-└── Synthetic/
-    ├── Train/
-    │   ├── Low/
-    │   └── Normal/
-    └── Test/
-        ├── Low/
-        └── Normal/
+  Real_captured/
+    Train/
+      Low/
+      Normal/
+    Test/
+      Low/
+      Normal/
+  Synthetic/
+    Train/
+      Low/
+      Normal/
+    Test/
+      Low/
+      Normal/
 ```
 
 ## Usage
 
+### Generic Benchmark Run
+
 ```bash
 python -m tools.benchmark --config configs/experiments/full_bench_lolv1.yaml
+```
+
+### RetinexNet Workflow
+
+RetinexNet supports three phases:
+
+- `decom`: decomposition-led training with a light relight warm-start
+- `joint`: full end-to-end training of decomposition and relighting
+- `relight`: freeze `DecomNet` and fine-tune only `RelightNet`
+
+Recommended order:
+
+1. Train `decom` first.
+2. Resume from a saved checkpoint with `train_phase=joint`.
+3. Optionally finish with `train_phase=relight`.
+
+Example:
+
+```bash
+# Stage 1: decomposition-led warmup
+python -m tools.train --config configs/experiments/retinexnet_lolv1_decom.yaml
+
+# Stage 2: full joint training
+python -m tools.train --config configs/experiments/retinexnet_lolv1_decom.yaml --opts train_phase=joint ckpt=checkpoints/retinexnet_lolv1_decom/checkpoint_epoch_020.pth log_dir=logs/retinexnet_lolv1_joint ckpt_dir=checkpoints/retinexnet_lolv1_joint
+
+# Stage 3: optional relight-only fine-tuning
+python -m tools.train --config configs/experiments/retinexnet_lolv1_relight.yaml
 ```
 
 ## Adding New Plugins
@@ -302,58 +252,50 @@ python -m tools.benchmark --config configs/experiments/full_bench_lolv1.yaml
 ### Rules
 
 - Every method must inherit `BaseMethod`
-
 - Every dataset must inherit `BaseDataset`
-
 - Every metric must inherit `BaseMetric`
-
-- Always register using `@REGISTRY.register("name")` decorator
-
+- Always register classes with the appropriate registry decorator
 - Always add a YAML config in the corresponding `configs/` subfolder
-
+- Prefer putting algorithm-specific behavior in the plugin itself. Only move logic into `engine/` or `core/` when it is genuinely generic
 
 ### Adding a New Method
 
-**Step 1** — create `methods/your_method.py`:
+Step 1: create `methods/your_method.py`
 
 ```python
 from methods.base import BaseMethod
 from core.registry import METHOD_REGISTRY
 
+
 @METHOD_REGISTRY.register("your_method")
 class YourMethod(BaseMethod):
     def __init__(self):
         super().__init__()
-        # define your model here
 
     def forward(self, batch):
-        # run model on batch[0], return raw output
         pass
 
     def enhance(self, batch):
-        # return final enhanced image
-        # for simple methods: return self.forward(batch)
         pass
 
     def compute_loss(self, batch):
-        # return training loss
-        # for traditional methods: raise NotImplementedError
         pass
 
     def load_ckpt(self, path):
-        # load weights from path
-        # for traditional methods: pass
         pass
 
     def get_meta(self):
         return {
             "name": "your_method",
-            "type": "srgb",  # or "raw"
-            "paired": True,  # or False
+            "type": "srgb",
+            "paired": True,
         }
 ```
 
-**Step 2** — create `configs/methods/your_method.yaml`:
+If your method needs staged training, it may also optionally expose `set_phase(...)`. `tools/train.py` will call it when `train_phase` is present in config.
+
+Step 2: create `configs/methods/your_method.yaml`
+
 ```yaml
 method: your_method
 lr: 0.0001
@@ -361,39 +303,39 @@ epochs: 100
 batch_size: 8
 ```
 
+Method configs act as defaults. Experiment configs can override them, and CLI `--opts` can override both.
+
 ### Adding a New Dataset
 
-**Step 1** — create `datasets_loaders/your_dataset.py`:
+Step 1: create `datasets_loaders/your_dataset.py`
 
 ```python
 from datasets_loaders.base import BaseDataset
 from core.registry import DATASET_REGISTRY
 
+
 @DATASET_REGISTRY.register("your_dataset")
 class YourDataset(BaseDataset):
-    def __init__(self, root, split="train"):
+    def __init__(self, root, split="train", transforms=None):
         super().__init__()
-        # load file paths here
 
     def __len__(self):
-        # return number of samples
         pass
 
     def __getitem__(self, idx):
-        # return [low, high] tensors
-        # shape: (3, H, W), normalized to [0, 1]
         pass
 
     def get_meta(self):
         return {
             "name": "your_dataset",
-            "type": "srgb",       # or "raw"
-            "paired": True,       # or False
-            "eval_channel": "y",  # or "rgb"
+            "type": "srgb",
+            "paired": True,
+            "eval_channel": "y",
         }
 ```
 
-**Step 2** — create `configs/datasets/your_dataset.yaml`:
+Step 2: create `configs/datasets/your_dataset.yaml`
+
 ```yaml
 dataset: your_dataset
 data_root: data/your_dataset
@@ -402,11 +344,12 @@ test_split: test
 
 ### Adding a New Metric
 
-**Step 1** — create `metrics/your_metric.py`:
+Step 1: create `metrics/your_metric.py`
 
 ```python
 from metrics.base import BaseMetric
 from core.registry import METRIC_REGISTRY
+
 
 @METRIC_REGISTRY.register("your_metric")
 class YourMetric(BaseMetric):
@@ -415,29 +358,17 @@ class YourMetric(BaseMetric):
         self.values = []
 
     def compute(self, pred, gt):
-        # compute score for one image pair
-        # store result in self.values
         pass
 
     def aggregate(self):
-        # return mean score across all images
         return sum(self.values) / len(self.values)
 
     def reset(self):
         self.values = []
 ```
 
-**Step 2** — create `configs/metrics/your_metric.yaml`:
-
-```yaml
-metrics:
-  - your_metric
-```
-
-### Key Rule
-> The engine never changes. Only plugins change.
-
 ### Registering Your Plugin
+
 After creating your plugin file, add it to `plugins.py`:
 
 ```python
@@ -451,4 +382,4 @@ import datasets_loaders.your_dataset
 import metrics.your_metric
 ```
 
-This ensures your plugin is automatically registered when any tool runs.
+This ensures the plugin is registered whenever a tool script imports `plugins`.

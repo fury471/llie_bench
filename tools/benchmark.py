@@ -1,76 +1,57 @@
-import torch
 import argparse
-from core.config import load_config
-from pathlib import Path
-from core.registry import METHOD_REGISTRY, DATASET_REGISTRY, METRIC_REGISTRY, lookup
+
+import torch
+
+from core.checkpoint import resolve_checkpoint_path
+from core.config import load_config, parse_overrides
+from core.registry import DATASET_REGISTRY, METHOD_REGISTRY, METRIC_REGISTRY, lookup
 from engine.benchmark_runner import BenchmarkRunner
 
 # import plugins so they register themselves
 import plugins
 
-# all the logic here
+
 def main():
-    # parse the --config argument.
     parser = argparse.ArgumentParser(description="Run LLIE benchmark")
     parser.add_argument("--config", type=str, required=True, help="Path to experiment config")
     parser.add_argument("--opts", nargs="+", default=[], help="Override config values e.g. method=clahe lr=0.0002")
     args = parser.parse_args()
 
-    #  load the config and merge with defaults
-    config = load_config(args.config)
-    for opt in args.opts:
-        key, value = opt.split("=")
-        try:
-            value = int(value)
-        except ValueError:
-            try:
-                value = float(value)
-            except ValueError:
-                pass
-        config[key] = value
-        
-    # lookup the method, dataset, and metric classes
+    overrides = parse_overrides(args.opts)
+    config = load_config(args.config, overrides=overrides)
+
     method = lookup(METHOD_REGISTRY, config["method"])()
 
-    if config.get("ckpt"):
-        # explicit checkpoint provided via --opts
-        method.load_ckpt(config["ckpt"])
-    elif "ckpt_dir" in config and Path(config["ckpt_dir"]).exists():
-        # auto-load latest checkpoint from ckpt_dir
-        ckpts = sorted(Path(config["ckpt_dir"]).glob("*.pth"))
-        if ckpts:
-            latest = ckpts[-1]
-            print(f"Auto-loading latest checkpoint: {latest}")
-            method.load_ckpt(str(latest))
-        else:
-            print("No checkpoint found — using random weights")
+    ckpt_path = resolve_checkpoint_path(config.get("ckpt"), config.get("ckpt_dir"))
+    if ckpt_path:
+        print(f"Auto-loading checkpoint: {ckpt_path}")
+        method.load_ckpt(str(ckpt_path))
     else:
-        print("No checkpoint — using random weights")
+        print("No checkpoint; using random weights")
 
     dataset_kwargs = {
-        "split": config.get("test_split", "test")
+        "split": config.get("test_split", "test"),
     }
     if "subset" in config:
         dataset_kwargs["subset"] = config["subset"]
 
     dataset = lookup(DATASET_REGISTRY, config["dataset"])(
         config["data_root"],
-        **dataset_kwargs
+        **dataset_kwargs,
     )
-    metrics = [lookup(METRIC_REGISTRY, m)() for m in config["metrics"]]
+    metrics = [lookup(METRIC_REGISTRY, metric_name)() for metric_name in config["metrics"]]
 
-    # detect the device automatically (use GPU if available)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
 
-    # create the benchmark runner and run the benchmark
     runner = BenchmarkRunner(
-        methods = [method],
-        datasets = [dataset],
-        metrics = metrics,
-        device = device,
+        methods=[method],
+        datasets=[dataset],
+        metrics=metrics,
+        device=device,
         log_dir=config["log_dir"],
-        protocol_path="docs/benchmark_protocol.md"
+        protocol_path="docs/benchmark_protocol.md",
+        batch_size=config.get("eval_batch_size", config.get("batch_size", 1)),
     )
     runner.run()
 

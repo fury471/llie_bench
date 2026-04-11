@@ -25,3 +25,22 @@ class CheckpointManager:
         checkpoint = torch.load(ckpt_path)
         print(f"Checkpoint loaded: {ckpt_path} (epoch {checkpoint['epoch']})")
         return checkpoint
+
+
+def resolve_checkpoint_path(ckpt=None, ckpt_dir=None):
+    """Return an explicit checkpoint path or the latest checkpoint in a directory."""
+    if ckpt:
+        ckpt_path = Path(ckpt)
+        if not ckpt_path.is_file():
+            raise FileNotFoundError(f"Checkpoint not found: {ckpt_path}")
+        return ckpt_path
+
+    if ckpt_dir:
+        ckpt_dir_path = Path(ckpt_dir)
+        if not ckpt_dir_path.exists():
+            return None
+        ckpts = sorted(ckpt_dir_path.glob("*.pth"))
+        if ckpts:
+            return ckpts[-1]
+
+    return None

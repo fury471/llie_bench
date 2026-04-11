@@ -1,4 +1,8 @@
 method: retinexnet
 lr: 0.0001
 epochs: 100
-batch_size: 16
+batch_size: 2
+eval_batch_size: 1
+patch_size: 96
+random_flip: true
+train_phase: decom

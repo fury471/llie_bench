@@ -1,10 +1,10 @@
 import argparse
-from core.config import load_config
+import torch
+
+from core.config import load_config, parse_overrides
 from core.registry import METHOD_REGISTRY, DATASET_REGISTRY, lookup
 from core.transforms import RandomCrop, RandomFlip, Compose
 from engine.trainer import Trainer
-import torch
-from pathlib import Path
 
 # import plugins so they register themselves
 import plugins
@@ -18,17 +18,8 @@ def main():
     args = parser.parse_args()
 
     # load the config and merge with defaults
-    config = load_config(args.config)
-    for opt in args.opts:
-        key, value = opt.split("=")
-        try:
-            value = int(value)
-        except ValueError:
-            try:
-                value = float(value)
-            except ValueError:
-                pass
-        config[key] = value
+    overrides = parse_overrides(args.opts)
+    config = load_config(args.config, overrides=overrides)
 
     # build transforms from config
     transform_list = []
@@ -51,14 +42,18 @@ def main():
     )
 
     # create a dataloader for training
-    train_loader = torch.utils.data.DataLoader(dataset, batch_size=config["batch_size"], shuffle=True)
-    # in tools/train.py, after creating method:
-    if hasattr(method, 'set_phase'):
-        phase = config.get('train_phase', 'decom')
+    train_loader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=config["batch_size"],
+        shuffle=True,
+    )
+
+    if hasattr(method, "set_phase"):
+        phase = config.get("train_phase", "decom")
         method.set_phase(phase)
         print(f"Training phase: {phase}")
 
-    # load checkpoint if specified (required for Phase 2)
+    # load checkpoint if specified (required for resumed or staged training)
     if config.get("ckpt"):
         method.load_ckpt(config["ckpt"])
         print(f"Loaded checkpoint: {config['ckpt']}")

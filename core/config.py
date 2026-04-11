@@ -1,43 +1,82 @@
 # YAML loading with config merging
-import yaml
 from pathlib import Path
 
+import yaml
+
+
 def load_yaml(path):
-    """Load a YAML file and merge with defaults."""
-    with open(path, 'r') as f:
+    """Load a YAML file into a flat dictionary."""
+    with open(path, "r") as f:
         config = yaml.safe_load(f)
     return config
 
+
 def merge_configs(base, override):
-    """Use update() to merge two configs, with override taking precedence."""
+    """Merge two flat config dicts, with override taking precedence."""
     result = base.copy()
     result.update(override)
     return result
 
-def load_config(path):
-    """Load and merge experiment, method, dataset and metrics configs."""
-    # load experiment config first
-    config = load_yaml(path)
 
-    # auto-load and merge method config
+def coerce_override_value(value):
+    """Convert CLI override values to simple Python scalars when possible."""
+    for caster in (int, float):
+        try:
+            return caster(value)
+        except ValueError:
+            continue
+
+    lowered = value.lower()
+    if lowered == "true":
+        return True
+    if lowered == "false":
+        return False
+    return value
+
+
+def parse_overrides(opts):
+    """Parse CLI overrides like ['method=retinexnet', 'batch_size=2'] into a dict."""
+    overrides = {}
+    for opt in opts:
+        key, value = opt.split("=", 1)
+        overrides[key] = coerce_override_value(value)
+    return overrides
+
+
+def _load_component_defaults(config):
+    """Load method, dataset, and metric defaults for the selected components."""
+    defaults = {}
+
     if "method" in config:
-        method_config_path = f"configs/methods/{config['method']}.yaml"
-        if Path(method_config_path).exists():
+        method_config_path = Path(f"configs/methods/{config['method']}.yaml")
+        if method_config_path.exists():
             method_config = load_yaml(method_config_path)
-            config = merge_configs(config, method_config)
+            defaults = merge_configs(defaults, method_config)
 
-    # auto-load and merge dataset config
     if "dataset" in config:
-        dataset_config_path = f"configs/datasets/{config['dataset']}.yaml"
-        if Path(dataset_config_path).exists():
+        dataset_config_path = Path(f"configs/datasets/{config['dataset']}.yaml")
+        if dataset_config_path.exists():
             dataset_config = load_yaml(dataset_config_path)
-            config = merge_configs(config, dataset_config)
+            defaults = merge_configs(defaults, dataset_config)
 
-    # auto-load and merge metrics config
     if "metrics" in config:
-        metrics_config_path = "configs/metrics/standard.yaml"
-        if Path(metrics_config_path).exists():
+        metrics_config_path = Path("configs/metrics/standard.yaml")
+        if metrics_config_path.exists():
             metrics_config = load_yaml(metrics_config_path)
-            config = merge_configs(config, metrics_config)
+            defaults = merge_configs(defaults, metrics_config)
 
-    return config
+    return defaults
+
+
+def load_config(path, overrides=None):
+    """Load an experiment config, merge component defaults, then re-apply overrides."""
+    experiment_config = load_yaml(path)
+    overrides = overrides or {}
+
+    # Apply selection overrides first so switched method/dataset defaults can be discovered.
+    selection_config = merge_configs(experiment_config, overrides)
+    defaults = _load_component_defaults(selection_config)
+
+    # Defaults <- experiment <- CLI overrides.
+    config = merge_configs(defaults, experiment_config)
+    return merge_configs(config, overrides)

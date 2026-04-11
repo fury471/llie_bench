@@ -21,6 +21,8 @@ class Evaluator:
             for batch in progress_bar:
                 batch = [x.to(self.device) for x in batch]
                 predictions = self.model.enhance(batch)
+                if predictions.device != self.device:
+                    predictions = predictions.to(self.device)
 
                 for i in range(predictions.shape[0]):
                     for metric in metrics:

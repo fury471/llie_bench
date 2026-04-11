@@ -1,3 +1,5 @@
+import inspect
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -48,6 +50,22 @@ def smoothness_loss(illumination, reflectance, lambda_g=10.0):
     weight_x = torch.exp(-lambda_g * refl_grad_x)
     weight_y = torch.exp(-lambda_g * refl_grad_y)
     return (illum_grad_x * weight_x).mean() + (illum_grad_y * weight_y).mean()
+
+
+def checkpoint_sequential_compat(functions, segments, input_tensor):
+    """
+    Call checkpoint_sequential with the current recommended API when available,
+    while remaining compatible with older PyTorch versions.
+    """
+    signature = inspect.signature(checkpoint_sequential)
+    if "use_reentrant" in signature.parameters:
+        return checkpoint_sequential(
+            functions,
+            segments,
+            input_tensor,
+            use_reentrant=False,
+        )
+    return checkpoint_sequential(functions, segments, input_tensor)
 
 
 class ConvBlock(nn.Module):
@@ -107,12 +125,7 @@ class DecomNet(nn.Module):
         features = self.stem(features)
 
         if self.training and features.requires_grad:
-            features = checkpoint_sequential(
-                self.blocks,
-                len(self.blocks),
-                features,
-                use_reentrant=False,
-            )
+            features = checkpoint_sequential_compat(self.blocks, len(self.blocks), features)
         else:
             features = self.blocks(features)
 
@@ -180,8 +193,7 @@ class RetinexNet(BaseMethod):
     """
     Phase behavior tuned for this benchmark pipeline:
 
-    - "decom": decomposition-led joint training. This keeps the model useful even
-      when the trainer only runs a single stage.
+    - "decom": decomposition-led training with a light relight warm-start.
     - "relight": freezes DecomNet and fine-tunes RelightNet.
     - "joint": trains both branches with full losses.
     """
@@ -228,6 +240,13 @@ class RetinexNet(BaseMethod):
         return {
             "I_relight": relit_illumination,
             "enhanced": enhanced,
+        }
+
+    def _detach_decomposition(self, decomp_outputs):
+        return {
+            "R": decomp_outputs["R"].detach(),
+            "I": decomp_outputs["I"].detach(),
+            "recon": decomp_outputs["recon"].detach(),
         }
 
     def forward(self, batch):
@@ -286,14 +305,17 @@ class RetinexNet(BaseMethod):
         high_decomp = self._decompose(high)
 
         decomposition_loss = self._decomposition_loss(low, high, low_decomp, high_decomp)
-        relight_loss, _ = self._relight_loss(high, low_decomp, high_decomp)
 
         if self.train_phase == "joint":
+            relight_loss, _ = self._relight_loss(high, low_decomp, high_decomp)
             return decomposition_loss + relight_loss
 
-        # Default "decom" mode remains decomposition-led, but still trains RelightNet
-        # so a single-stage training run produces a usable enhancement model.
-        return decomposition_loss + 0.3 * relight_loss
+        # In decomposition-led mode, warm up RelightNet without pushing relight
+        # gradients back into DecomNet. This keeps the phase stable while still
+        # producing a branch that is usable before the full joint stage.
+        detached_low = self._detach_decomposition(low_decomp)
+        aux_relight_loss, _ = self._relight_loss(high, detached_low, high_decomp)
+        return decomposition_loss + 0.3 * aux_relight_loss
 
     def load_ckpt(self, path):
         ckpt = torch.load(path, map_location="cpu")
