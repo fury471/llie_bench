@@ -14,12 +14,12 @@ See [Data Setup](#data-setup) section.
 
 ### 3. Train a method
 ```bash
-python tools/train.py --config configs/experiments/full_bench_lolv1.yaml
+python -m tools.train --config configs/experiments/full_bench_lolv1.yaml
 ```
 
 ### 4. Run inference on a single image
 ```bash
-python tools/inference.py --method zerodce --ckpt checkpoints/zerodce_lolv1/checkpoint_epoch_099.pth --input your_image.png --output results/enhanced.png
+python -m tools.inference --method zerodce --ckpt checkpoints/zerodce_lolv1/checkpoint_epoch_099.pth --input your_image.png --output results/enhanced.png
 ```
 
 ### 5. Run benchmark
@@ -236,6 +236,7 @@ class YourMetric(BaseMetric):
 ```
 
 **Step 2** — create `configs/metrics/your_metric.yaml`:
+
 ```yaml
 metrics:
   - your_metric
