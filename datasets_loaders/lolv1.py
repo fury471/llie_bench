@@ -4,13 +4,15 @@ import torch
 from pathlib import Path
 from datasets_loaders.base import BaseDataset
 from core.registry import DATASET_REGISTRY
+from core.transforms import Compose
 
 @DATASET_REGISTRY.register("lolv1")
 class LOLv1(BaseDataset):
-    def __init__(self, root, split="train"):
+    def __init__(self, root, split="train", transforms=None):
         super().__init__()
         self.root = Path(root)
         self.split = split
+        self.transforms = transforms
         split_map = {"train": "our485", "test": "eval15"}
         split_folder = split_map[self.split]
         self.low_dir = self.root / split_folder / "low"
@@ -39,6 +41,9 @@ class LOLv1(BaseDataset):
         # Convert to PyTorch tensors and permute from (H, W, C) to (C, H, W)
         low = torch.from_numpy(low).permute(2, 0, 1)
         high = torch.from_numpy(high).permute(2, 0, 1)
+
+        if self.transforms:
+            low, high = self.transforms([low, high])
 
         return [low, high]
     

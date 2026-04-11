@@ -1,0 +1,17 @@
+method: retinexnet
+dataset: lolv1
+data_root: data/LOLdataset
+batch_size: 16
+lr: 0.0001
+epochs: 100
+seed: 42
+train_phase: relight
+patch_size: 96
+random_flip: true
+log_dir: logs/retinexnet_lolv1_relight
+ckpt: checkpoints/retinexnet_lolv1_decom/checkpoint_epoch_020.pth
+ckpt_dir: checkpoints/retinexnet_lolv1_relight
+metrics:
+  - psnr
+  - ssim
+  - niqe

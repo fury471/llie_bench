@@ -4,14 +4,16 @@ import torch
 from pathlib import Path
 from datasets_loaders.base import BaseDataset
 from core.registry import DATASET_REGISTRY
+from core.transforms import Compose
 
 @DATASET_REGISTRY.register("lolv2")
 class LOLv2(BaseDataset):
-    def __init__(self, root, subset="Real_captured", split="Train"):
+    def __init__(self, root, subset="Real_captured", split="Train", transforms=None):
         super().__init__()
         self.root = Path(root)
         self.subset = subset
         self.split = split
+        self.transforms = transforms
         self.low_dir = self.root / subset / split / "Low"
         self.normal_dir = self.root / subset / split / "Normal"
         self.filenames = sorted([f.name for f in self.low_dir.glob("*.png")])
@@ -43,6 +45,9 @@ class LOLv2(BaseDataset):
         # Convert to PyTorch tensors and permute from (H, W, C) to (C, H, W)
         low = torch.from_numpy(low).permute(2, 0, 1)
         normal = torch.from_numpy(normal).permute(2, 0, 1)
+
+        if self.transforms:
+            low, normal = self.transforms([low, normal])
 
         return [low, normal]
     

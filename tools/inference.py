@@ -4,6 +4,7 @@ import numpy as np
 import os
 import argparse
 from core.registry import METHOD_REGISTRY, lookup
+from pathlib import Path
 
 # import plugins so they register themselves
 import plugins
@@ -13,6 +14,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run inference on a single image")
     parser.add_argument("--method", type=str, required=True, help="Method name e.g. zerodce, clahe")
     parser.add_argument("--ckpt", type=str, default=None, help="Path to checkpoint (optional)")
+    parser.add_argument("--ckpt_dir", type=str, default=None, help="Directory to auto-load latest checkpoint from")    
     parser.add_argument("--input", type=str, required=True, help="Path to input image")
     parser.add_argument("--output", type=str, default="results/enhanced.png", help="Path to save output")
     args = parser.parse_args()
@@ -21,6 +23,16 @@ def main():
     method = lookup(METHOD_REGISTRY, args.method)()
     if args.ckpt:
         method.load_ckpt(args.ckpt)
+    elif args.ckpt_dir:
+        ckpts = sorted(Path(args.ckpt_dir).glob("*.pth"))
+        if ckpts:
+            latest = ckpts[-1]
+            print(f"Auto-loading latest checkpoint: {latest}")
+            method.load_ckpt(str(latest))
+        else:
+            print("No checkpoint found — using random weights")
+    else:
+        print("No checkpoint — using random weights")
     method.eval()
 
     # load and preprocess image

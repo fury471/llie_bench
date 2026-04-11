@@ -1,8 +1,10 @@
 import argparse
 from core.config import load_config
 from core.registry import METHOD_REGISTRY, DATASET_REGISTRY, lookup
+from core.transforms import RandomCrop, RandomFlip, Compose
 from engine.trainer import Trainer
 import torch
+from pathlib import Path
 
 # import plugins so they register themselves
 import plugins
@@ -28,19 +30,44 @@ def main():
                 pass
         config[key] = value
 
+    # build transforms from config
+    transform_list = []
+    if config.get("patch_size"):
+        transform_list.append(RandomCrop(config["patch_size"]))
+    if config.get("random_flip", False):
+        transform_list.append(RandomFlip())
+    transforms = Compose(transform_list) if transform_list else None
+
     # lookup the method and dataset classes
     method = lookup(METHOD_REGISTRY, config["method"])()
     # check if method supports training
     if not list(method.parameters()):
         print(f"Method '{config['method']}' is a traditional method and does not support training.")
         return
-    dataset = lookup(DATASET_REGISTRY, config["dataset"])(config["data_root"], split="train")
+    dataset = lookup(DATASET_REGISTRY, config["dataset"])(
+        config["data_root"],
+        split="train",
+        transforms=transforms
+    )
 
     # create a dataloader for training
     train_loader = torch.utils.data.DataLoader(dataset, batch_size=config["batch_size"], shuffle=True)
+    # in tools/train.py, after creating method:
+    if hasattr(method, 'set_phase'):
+        phase = config.get('train_phase', 'decom')
+        method.set_phase(phase)
+        print(f"Training phase: {phase}")
 
-    # create an optimizer for the method
-    optimizer = torch.optim.Adam(method.parameters(), lr=config["lr"])
+    # load checkpoint if specified (required for Phase 2)
+    if config.get("ckpt"):
+        method.load_ckpt(config["ckpt"])
+        print(f"Loaded checkpoint: {config['ckpt']}")
+
+    # only optimize parameters that require gradients
+    optimizer = torch.optim.Adam(
+        filter(lambda p: p.requires_grad, method.parameters()),
+        lr=config["lr"]
+    )
 
     # detect the device automatically (use GPU if available)
     device = "cuda" if torch.cuda.is_available() else "cpu"
