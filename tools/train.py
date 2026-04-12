@@ -1,87 +1,82 @@
 import argparse
+
 import torch
 
+import plugins
 from core.config import load_config, parse_overrides
-from core.registry import METHOD_REGISTRY, DATASET_REGISTRY, lookup
-from core.transforms import RandomCrop, RandomFlip, Compose
+from core.runtime import load_method_checkpoint, method_requires_checkpoint, resolve_device
+from core.transforms import build_transforms
+from core.registry import DATASET_REGISTRY, METHOD_REGISTRY, lookup
 from engine.trainer import Trainer
 
-# import plugins so they register themselves
-import plugins
 
-# all the logic here
 def main():
-    # parse the --config argument.
-    parser = argparse.ArgumentParser(description="Train LLIE method")
+    parser = argparse.ArgumentParser(description="Train an LLIE method")
     parser.add_argument("--config", type=str, required=True, help="Path to experiment config")
-    parser.add_argument("--opts", nargs="+", default=[], help="Override config values e.g. method=clahe lr=0.0002")
+    parser.add_argument("--opts", nargs="+", default=[], help="Override config values like lr=0.0002")
     args = parser.parse_args()
 
-    # load the config and merge with defaults
-    overrides = parse_overrides(args.opts)
+    try:
+        overrides = parse_overrides(args.opts)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
     config = load_config(args.config, overrides=overrides)
+    transforms = build_transforms(config)
 
-    # build transforms from config
-    transform_list = []
-    if config.get("patch_size"):
-        transform_list.append(RandomCrop(config["patch_size"]))
-    if config.get("random_flip", False):
-        transform_list.append(RandomFlip())
-    transforms = Compose(transform_list) if transform_list else None
-
-    # lookup the method and dataset classes
     method = lookup(METHOD_REGISTRY, config["method"])()
-    # check if method supports training
-    if not list(method.parameters()):
+    if not method_requires_checkpoint(method):
         print(f"Method '{config['method']}' is a traditional method and does not support training.")
         return
-    dataset = lookup(DATASET_REGISTRY, config["dataset"])(
-        config["data_root"],
-        split="train",
-        transforms=transforms
-    )
-
-    # create a dataloader for training
-    train_loader = torch.utils.data.DataLoader(
-        dataset,
-        batch_size=config["batch_size"],
-        shuffle=True,
-    )
 
     if hasattr(method, "set_phase"):
         phase = config.get("train_phase", "decom")
         method.set_phase(phase)
         print(f"Training phase: {phase}")
 
-    # load checkpoint if specified (required for resumed or staged training)
     if config.get("ckpt"):
-        method.load_ckpt(config["ckpt"])
-        print(f"Loaded checkpoint: {config['ckpt']}")
+        try:
+            _, status = load_method_checkpoint(
+                method,
+                config["method"],
+                ckpt=config.get("ckpt"),
+                required=False,
+            )
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
+        print(status)
 
-    # only optimize parameters that require gradients
-    optimizer = torch.optim.Adam(
-        filter(lambda p: p.requires_grad, method.parameters()),
-        lr=config["lr"]
+    dataset = lookup(DATASET_REGISTRY, config["dataset"])(
+        config["data_root"],
+        split="train",
+        transforms=transforms,
+    )
+    train_loader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=config["batch_size"],
+        shuffle=True,
     )
 
-    # detect the device automatically (use GPU if available)
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    optimizer = torch.optim.Adam(
+        filter(lambda parameter: parameter.requires_grad, method.parameters()),
+        lr=config["lr"],
+    )
+
+    device = resolve_device()
     print(f"Using device: {device}")
 
-    # create the trainer and run training
     trainer = Trainer(
         model=method,
         optimizer=optimizer,
         device=device,
         log_dir=config["log_dir"],
-        ckpt_dir=config["ckpt_dir"]
+        ckpt_dir=config["ckpt_dir"],
     )
     trainer.train(
         dataloader=train_loader,
         epochs=config["epochs"],
-        seed=config["seed"]
+        seed=config["seed"],
     )
 
 
-if __name__ == "__main__": 
+if __name__ == "__main__":
     main()

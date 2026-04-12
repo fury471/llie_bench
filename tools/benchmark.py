@@ -1,37 +1,42 @@
 import argparse
 
-import torch
+import plugins
 
-from core.checkpoint import resolve_checkpoint_path
 from core.config import load_config, parse_overrides
+from core.runtime import load_method_checkpoint, method_requires_checkpoint, resolve_device
 from core.registry import DATASET_REGISTRY, METHOD_REGISTRY, METRIC_REGISTRY, lookup
 from engine.benchmark_runner import BenchmarkRunner
 
-# import plugins so they register themselves
-import plugins
-
 
 def main():
-    parser = argparse.ArgumentParser(description="Run LLIE benchmark")
+    parser = argparse.ArgumentParser(description="Run the LLIE benchmark")
     parser.add_argument("--config", type=str, required=True, help="Path to experiment config")
-    parser.add_argument("--opts", nargs="+", default=[], help="Override config values e.g. method=clahe lr=0.0002")
+    parser.add_argument("--opts", nargs="+", default=[], help="Override config values like method=clahe")
     args = parser.parse_args()
 
-    overrides = parse_overrides(args.opts)
+    try:
+        overrides = parse_overrides(args.opts)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
     config = load_config(args.config, overrides=overrides)
 
     method = lookup(METHOD_REGISTRY, config["method"])()
-
-    ckpt_path = resolve_checkpoint_path(config.get("ckpt"), config.get("ckpt_dir"))
-    if ckpt_path:
-        print(f"Auto-loading checkpoint: {ckpt_path}")
-        method.load_ckpt(str(ckpt_path))
+    if method_requires_checkpoint(method):
+        try:
+            _, status = load_method_checkpoint(
+                method,
+                config["method"],
+                ckpt=config.get("ckpt"),
+                ckpt_dir=config.get("ckpt_dir"),
+                required=True,
+            )
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
+        print(status)
     else:
-        print("No checkpoint; using random weights")
+        print(f"Method '{config['method']}' does not need a checkpoint.")
 
-    dataset_kwargs = {
-        "split": config.get("test_split", "test"),
-    }
+    dataset_kwargs = {"split": config.get("test_split", "test")}
     if "subset" in config:
         dataset_kwargs["subset"] = config["subset"]
 
@@ -41,7 +46,7 @@ def main():
     )
     metrics = [lookup(METRIC_REGISTRY, metric_name)() for metric_name in config["metrics"]]
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = resolve_device()
     print(f"Using device: {device}")
 
     runner = BenchmarkRunner(

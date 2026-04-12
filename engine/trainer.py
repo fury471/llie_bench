@@ -3,6 +3,7 @@ from tqdm import tqdm
 
 from core.checkpoint import CheckpointManager
 from core.logger import Logger
+from core.runtime import move_batch_to_device
 from core.seed import set_seed
 
 
@@ -29,11 +30,16 @@ class Trainer:
             progress_bar = tqdm(dataloader, desc=f"Epoch {epoch + 1}/{epochs}")
 
             for batch in progress_bar:
-                batch = [x.to(self.device) for x in batch]
+                batch = move_batch_to_device(batch, self.device)
                 self.optimizer.zero_grad(set_to_none=True)
 
                 with torch.amp.autocast(device_type=amp_device, enabled=use_amp):
                     loss = self.model.compute_loss(batch)
+
+                if not torch.isfinite(loss):
+                    raise ValueError(
+                        f"Non-finite loss encountered during training: {loss.detach().item()}"
+                    )
 
                 scaler.scale(loss).backward()
                 scaler.step(self.optimizer)

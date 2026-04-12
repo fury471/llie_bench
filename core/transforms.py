@@ -1,5 +1,6 @@
-import torch
 import random
+
+import torch
 
 class RandomCrop:
     """Randomly crop a patch from a list of image tensors."""
@@ -36,3 +37,13 @@ class Compose:
         for t in self.transforms:
             tensors = t(tensors)
         return tensors
+
+
+def build_transforms(config):
+    """Build a composed transform pipeline from a config dictionary."""
+    transforms = []
+    if config.get("patch_size"):
+        transforms.append(RandomCrop(config["patch_size"]))
+    if config.get("random_flip", False):
+        transforms.append(RandomFlip())
+    return Compose(transforms) if transforms else None

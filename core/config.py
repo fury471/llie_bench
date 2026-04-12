@@ -20,17 +20,19 @@ def merge_configs(base, override):
 
 def coerce_override_value(value):
     """Convert CLI override values to simple Python scalars when possible."""
+    lowered = value.lower()
+    if lowered in {"none", "null"}:
+        return None
+    if lowered == "true":
+        return True
+    if lowered == "false":
+        return False
+
     for caster in (int, float):
         try:
             return caster(value)
         except ValueError:
             continue
-
-    lowered = value.lower()
-    if lowered == "true":
-        return True
-    if lowered == "false":
-        return False
     return value
 
 
@@ -38,6 +40,10 @@ def parse_overrides(opts):
     """Parse CLI overrides like ['method=retinexnet', 'batch_size=2'] into a dict."""
     overrides = {}
     for opt in opts:
+        if "=" not in opt:
+            raise ValueError(
+                f"Invalid override '{opt}'. Expected key=value format, for example lr=0.0002."
+            )
         key, value = opt.split("=", 1)
         overrides[key] = coerce_override_value(value)
     return overrides

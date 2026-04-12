@@ -1,7 +1,10 @@
-import torch
 from pathlib import Path
 
+import torch
+
 class CheckpointManager:
+    """Persist and restore training checkpoints."""
+
     def __init__(self, ckpt_dir):
         self.ckpt_dir = Path(ckpt_dir)
         self.ckpt_dir.mkdir(parents=True, exist_ok=True)
@@ -22,7 +25,7 @@ class CheckpointManager:
         if not ckpt_path.is_file():
             raise FileNotFoundError(f"Checkpoint not found: {ckpt_path}")
         
-        checkpoint = torch.load(ckpt_path)
+        checkpoint = torch.load(ckpt_path, map_location="cpu")
         print(f"Checkpoint loaded: {ckpt_path} (epoch {checkpoint['epoch']})")
         return checkpoint
 

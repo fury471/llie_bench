@@ -58,6 +58,8 @@ python -m tools.inference --method zerodce --ckpt checkpoints/zerodce_lolv1/chec
 
 You can also pass `--ckpt_dir` instead of `--ckpt`. The tool will auto-load the latest checkpoint in that directory.
 
+Learned methods require a checkpoint for inference. Traditional methods such as `clahe` do not.
+
 ### 5. Run benchmark
 
 ```bash
@@ -65,6 +67,8 @@ python -m tools.benchmark --config configs/experiments/full_bench_lolv1.yaml
 ```
 
 Benchmark evaluation uses `eval_batch_size` when present in config, otherwise it falls back to `batch_size`.
+
+Learned methods require `ckpt` or `ckpt_dir` for benchmarking. Traditional methods do not.
 
 ### 6. Run with a traditional method
 
@@ -78,13 +82,13 @@ python -m tools.inference --method clahe --input your_image.png --output results
 python -m tools.export_tables --log_dir logs/zerodce_lolv1/eval --output results/table.csv
 ```
 
-### 8. Run the interactive demo
+### 8. Run the web app
 
 ```bash
-python -m tools.demo
+python -m tools.app
 ```
 
-The demo method list is built from the registry, so newly registered methods appear automatically.
+The web app method list is built from the registry, so newly registered methods appear automatically.
 
 ## CLI Reference
 
@@ -92,6 +96,12 @@ Most scripts in this project follow the same pattern:
 
 ```bash
 python -m tools.<script_name> [arguments]
+```
+
+The web app entrypoint follows the same style:
+
+```bash
+python -m tools.app [arguments]
 ```
 
 ### `--config`
@@ -150,6 +160,8 @@ It points to a specific checkpoint file:
 
 Use this when you want an exact checkpoint, not just the latest one.
 
+For learned methods, `tools.inference` and `tools.benchmark` expect a checkpoint to be available.
+
 ### `--ckpt_dir`
 
 Used by `tools.inference`, and also accepted through config for benchmarking.
@@ -171,6 +183,22 @@ Example:
 
 ```bash
 python -m tools.inference --method clahe --input data/LOLdataset/eval15/low/1.png --output results/clahe_1.png
+```
+
+### `--share`, `--host`, and `--port`
+
+Used by `tools.app`.
+
+- `--share` asks Gradio to create a public share link
+- `--host` controls which interface address the app binds to
+- `--port` controls which TCP port the app uses
+
+Examples:
+
+```bash
+python -m tools.app
+python -m tools.app --share
+python -m tools.app --host 0.0.0.0 --port 8080
 ```
 
 ## Config Precedence
@@ -200,7 +228,7 @@ The project is organized into five layers:
 
 | Layer | Folder(s) | Responsibility |
 | --- | --- | --- |
-| Entry Points | `tools/` | Thin CLI and demo wrappers |
+| Entry Points | `tools/` | Thin CLI and web app wrappers |
 | Engine | `engine/` | Generic training and evaluation logic |
 | Core Framework | `core/` | Shared utilities and framework contracts |
 | Plugins | `methods/`, `datasets_loaders/`, `metrics/` | Algorithms, datasets, metrics |
@@ -216,46 +244,85 @@ The engine should only contain capabilities that are generic across methods, dat
 
 ### Training Pipeline
 
-```mermaid
-flowchart TD
-    Start["tools/train.py"] --> Cfg["load_config"]
-    Cfg --> BuildTransforms["Optional RandomCrop / RandomFlip"]
-    BuildTransforms --> Method["lookup METHOD_REGISTRY"]
-    Method --> Dataset["lookup DATASET_REGISTRY"]
-    Dataset --> Loader["DataLoader"]
-    Loader --> Phase["Optional method.set_phase(...)"]
-    Phase --> Ckpt["Optional method.load_ckpt(...)"]
-    Ckpt --> Trainer["Trainer.train(...)"]
-    Trainer --> Loss["model.compute_loss(batch)"]
-    Loss --> Backward["backward + optimizer.step"]
-    Backward --> Save["log + save checkpoint"]
+```text
+tools/train.py
+  |
+  +-- load_config(...)
+  |     |
+  |     +-- method/dataset/metric defaults
+  |     +-- experiment config
+  |     +-- CLI --opts overrides
+  |
+  +-- build_transforms(config)
+  |
+  +-- lookup METHOD_REGISTRY
+  +-- lookup DATASET_REGISTRY
+  +-- DataLoader
+  |
+  +-- optional method.set_phase(...)
+  +-- optional method.load_ckpt(...)
+  |
+  +-- Trainer.train(...)
+        |
+        +-- move batch to device
+        +-- model.compute_loss(batch)
+        +-- backward + optimizer.step
+        +-- log loss
+        +-- save checkpoint
 ```
 
 ### Benchmark Pipeline
 
-```mermaid
-flowchart TD
-    Start["tools/benchmark.py"] --> Cfg["load_config"]
-    Cfg --> Method["lookup METHOD_REGISTRY"]
-    Method --> Ckpt["resolve_checkpoint_path"]
-    Ckpt --> Dataset["lookup DATASET_REGISTRY"]
-    Dataset --> Metrics["lookup METRIC_REGISTRY"]
-    Metrics --> Runner["BenchmarkRunner.run(...)"]
-    Runner --> Protocol["Protocol.check_compatibility"]
-    Protocol --> Eval["Evaluator.evaluate(...)"]
-    Eval --> Infer["model.enhance(batch)"]
-    Infer --> Aggregate["metric.aggregate()"]
+```text
+tools/benchmark.py
+  |
+  +-- load_config(...)
+  +-- lookup METHOD_REGISTRY
+  +-- optional/required checkpoint load
+  +-- lookup DATASET_REGISTRY
+  +-- lookup METRIC_REGISTRY
+  |
+  +-- BenchmarkRunner.run(...)
+        |
+        +-- Protocol.check_compatibility(...)
+        +-- DataLoader
+        +-- Evaluator.evaluate(...)
+              |
+              +-- move batch to device
+              +-- model.enhance(batch)
+              +-- metric.compute(...)
+              +-- metric.aggregate(...)
+              +-- log evaluation results
 ```
 
 ### Inference Pipeline
 
-```mermaid
-flowchart TD
-    Start["tools/inference.py"] --> Method["lookup METHOD_REGISTRY"]
-    Method --> Ckpt["resolve_checkpoint_path"]
-    Ckpt --> Load["cv2.imread + tensor conversion"]
-    Load --> Infer["method.enhance([img_tensor])"]
-    Infer --> Save["cv2.imwrite"]
+```text
+tools/inference.py
+  |
+  +-- lookup METHOD_REGISTRY
+  +-- optional/required checkpoint load
+  +-- read input image
+  +-- convert RGB image -> BCHW tensor
+  +-- method.enhance([img_tensor])
+  +-- convert tensor -> RGB image
+  +-- save output image
+```
+
+### Web App Pipeline
+
+```text
+tools/app.py
+  |
+  +-- build Gradio interface
+  +-- lookup METHOD_REGISTRY
+  +-- validate checkpoint input
+  +-- load checkpoint when needed
+  +-- choose device
+  +-- try progressively smaller image sizes if memory is tight
+  +-- method.enhance([img_tensor])
+  +-- convert tensor -> RGB image
+  +-- return image + status message to the UI
 ```
 
 ## Data Setup
